@@ -6,6 +6,10 @@
 	"author": "Aakhyan",
 	"type": "module",
 	"main": "dist/index.js",
+	"imports": {
+		"#lib": "./dist/lib/index.js",
+		"#src/*": "./dist/*/index.js"
+	},
 	"scripts": {
 		"test": "vitest",
 		"dev": "node --watch --env-file=.env dist/index.js",
@@ -18,5 +22,8 @@
 		"@types/node": "^26.2.0",
 		"typescript": "^7.0.2",
 		"vitest": "^4.1.10"
+	},
+	"dependencies": {
+		"winston": "^3.19.0"
 	}
 }

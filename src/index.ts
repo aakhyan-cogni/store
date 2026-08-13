@@ -1,19 +1,22 @@
-import { createServer } from "http";
+import { Server } from "#lib";
 
-const server = createServer((req, res) => {
-	const { method, url } = req;
+new Server().start();
+// import { createServer } from "http";
 
-	if (method === "GET" && url === "/") {
-		res.writeHead(200, { "content-type": "application/json" });
-		res.end(
-			JSON.stringify({
-				message: "Server is running",
-			}),
-		);
-		return;
-	}
-});
+// const server = createServer((req, res) => {
+// 	const { method, url } = req;
 
-server.listen(process.env.PORT, () => {
-	console.log(`Server is running on http://localhost:${process.env.PORT}`);
-});
+// 	if (method === "GET" && url === "/") {
+// 		res.writeHead(200, { "content-type": "application/json" });
+// 		res.end(
+// 			JSON.stringify({
+// 				message: "Server is running",
+// 			}),
+// 		);
+// 		return;
+// 	}
+// });
+
+// server.listen(process.env.PORT, () => {
+// 	console.log(`Server is running on http://localhost:${process.env.PORT}`);
+// });

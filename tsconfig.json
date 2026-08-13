@@ -11,6 +11,10 @@
 		"target": "esnext",
 		"types": ["node"],
 		"lib": ["esnext"],
+		"paths": {
+			"#lib": ["./src/lib/index.js"],
+			"#src/*": ["./src/*/index.js"]
+		},
 		// For nodejs:
 		// "types": ["node"],
 		// and npm install -D @types/node
@@ -41,6 +45,6 @@
 		"moduleDetection": "force",
 		"skipLibCheck": true
 	},
-	"include": ["src/**/*", "types"],
+	"include": ["src/**/*", "typings"],
 	"exclude": ["tests", "dist"]
 }
