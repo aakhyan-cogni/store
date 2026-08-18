@@ -1,5 +1,16 @@
 import winston, { format } from "winston";
+import { cyan, dim, gray, magenta, red, yellow } from "colorette";
 import { LogLevel } from "#src/types";
+
+const LEVEL_COLORS: Record<LogLevel, (text: string) => string> = {
+	[LogLevel.Error]: red,
+	[LogLevel.Warn]: yellow,
+	[LogLevel.Info]: cyan,
+	[LogLevel.Http]: magenta,
+	[LogLevel.Verbose]: gray,
+	[LogLevel.Debug]: gray,
+	[LogLevel.Silly]: gray,
+};
 
 export class Logger {
 	public static init() {
@@ -26,7 +37,6 @@ export class Logger {
 						format.timestamp({
 							format: "HH:mm:ss.SSS",
 						}),
-						format.colorize(),
 						this.customFormat(),
 					),
 				}),
@@ -37,7 +47,8 @@ export class Logger {
 
 	private static customFormat() {
 		return format.printf(({ level, message, timestamp }) => {
-			return `${timestamp} [${level}]: ${message}`;
+			const colorize = LEVEL_COLORS[level as LogLevel] ?? ((text: string) => text);
+			return `${dim(timestamp as string)} [${colorize(level.toUpperCase())}]: ${message}`;
 		});
 	}
 }

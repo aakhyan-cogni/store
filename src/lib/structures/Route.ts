@@ -32,6 +32,8 @@ interface MethodOptions {
 	req: IncomingMessage;
 	res: ServerResponse<IncomingMessage>;
 	params?: Record<string, string>;
+	query: URLSearchParams;
+	body?: unknown;
 }
 
 export interface RegisteredRoute {

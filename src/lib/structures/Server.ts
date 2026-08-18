@@ -1,8 +1,12 @@
 import { registerRoutes } from "#src/lib/registry";
 import { Logger } from "./Logger.js";
+import { Parser } from "./Parser.js";
 import { Server as NodeServer } from "http";
 import type { RegisteredRoute, Route } from "./Route.js";
 import type { HTTPMethod } from "#src/types";
+import { getRequestUrl } from "../utils.js";
+
+const BODY_METHODS = new Set<HTTPMethod>(["POST", "PUT", "PATCH"]);
 
 export class Server extends NodeServer {
 	public readonly logger = Logger.init();
@@ -17,58 +21,69 @@ export class Server extends NodeServer {
 	public dispatchRequests() {
 		this.on("request", async (req, res) => {
 			if (!req.url) {
-				this.logger.error(`URL missing in req`, req);
+				this.logger.error(`URL missing in request from ${req.socket.remoteAddress ?? "unknown"}`);
 				return res.writeHead(500).end();
 			}
-			const path = new URL(`http://${process.env.HOST ?? "localhost"}${req.url}`).pathname;
+			const url = getRequestUrl(req);
+			const path = url.pathname;
 			const method = req.method as HTTPMethod;
-			const key = `${method}:${path}`;
-			const potentialRoute = this.staticRoutes.get(key);
-			if (potentialRoute && potentialRoute[method]) {
+
+			const resolved = this.resolveHandler(path, method);
+			if (!resolved) {
+				return res.writeHead(this.knownPaths.has(path) || this.hasDynamicMatch(path) ? 405 : 404).end();
+			}
+			const { handler, params } = resolved;
+
+			let body: unknown;
+			if (BODY_METHODS.has(method)) {
 				try {
-					await potentialRoute[method]({ req, res });
+					body = await Parser.parseBody(req);
 				} catch (err) {
-					this.logger.error(err);
-					res.writeHead(500);
-					res.end();
+					this.logger.warn(`Failed to parse request body for ${method}:${path}: ${(err as Error).message}`);
+					return res.writeHead(400).end();
 				}
-			} else if (this.knownPaths.has(path)) {
-				res.writeHead(405).end();
-			} else {
-				let dynaMatched = false;
-				for (const dynamicRoute of this.dynamicRoutes) {
-					const match = path.match(dynamicRoute.regex);
-					if (!match) continue;
-					dynaMatched = true;
-					if (dynamicRoute.method !== method) continue;
-					const params: Record<string, string> = {};
+			}
 
-					dynamicRoute.params.forEach((name, idx) => {
-						params[name] = match[idx + 1]!;
-					});
-
-					await dynamicRoute.route[method]!({
-						req,
-						res,
-						params,
-					});
-					return;
-				}
-				if (dynaMatched) res.writeHead(405).end();
-				else res.writeHead(404).end();
+			try {
+				await handler({ req, res, ...(params && { params }), query: url.searchParams, body });
+			} catch (err) {
+				this.logger.error(err);
+				res.writeHead(500);
+				res.end();
 			}
 		});
+	}
+
+	private resolveHandler(path: string, method: HTTPMethod) {
+		const staticRoute = this.staticRoutes.get(`${method}:${path}`);
+		if (staticRoute?.[method]) return { handler: staticRoute[method], params: undefined };
+
+		for (const dynamicRoute of this.dynamicRoutes) {
+			if (dynamicRoute.method !== method) continue;
+			const match = path.match(dynamicRoute.regex);
+			if (!match) continue;
+			const params: Record<string, string> = {};
+			dynamicRoute.params.forEach((name, idx) => {
+				params[name] = match[idx + 1]!;
+			});
+			return { handler: dynamicRoute.route[method]!, params };
+		}
+		return null;
+	}
+
+	private hasDynamicMatch(path: string) {
+		return this.dynamicRoutes.some((route) => route.regex.test(path));
 	}
 
 	public async start() {
+		const port = Number(process.env.PORT);
+		if (!process.env.PORT || Number.isNaN(port)) {
+			throw new Error(`Invalid PORT environment variable: ${process.env.PORT}`);
+		}
 		await registerRoutes(this);
-		this.listen(process.env.PORT, () => {
-			this.logger.info(`Server has started, listening on http://localhost:${process.env.PORT}`);
+		this.listen(port, () => {
+			this.logger.info(`Server has started, listening on http://localhost:${port}`);
 		});
 		this.dispatchRequests();
-	}
-
-	public buildApiRoute(path: string) {
-		return path.slice(5, -3);
 	}
 }

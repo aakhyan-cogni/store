@@ -1,4 +1,4 @@
-import { Parser, Route } from "#lib";
+import { Route } from "#lib";
 
 export default new Route({
 	description: "Register a new user",
