@@ -1,5 +1,7 @@
 import type { Awaitable, HTTPMethod } from "#src/types";
 import type { IncomingMessage, ServerResponse } from "http";
+import type { Server } from "./Server.js";
+import type postgres from "postgres";
 
 export class Route {
 	public description?: string | undefined;
@@ -34,6 +36,8 @@ interface MethodOptions {
 	params?: Record<string, string>;
 	query: URLSearchParams;
 	body?: unknown;
+	server: Server;
+	db: postgres.Sql;
 }
 
 export interface RegisteredRoute {

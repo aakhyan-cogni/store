@@ -1,10 +1,11 @@
-import { registerRoutes } from "#src/lib/registry";
+import { registerRoutes, DB } from "#lib";
 import { Logger } from "./Logger.js";
 import { Parser } from "./Parser.js";
 import { Server as NodeServer } from "http";
 import type { RegisteredRoute, Route } from "./Route.js";
 import type { HTTPMethod } from "#src/types";
 import { getRequestUrl } from "../utils.js";
+import type postgres from "postgres";
 
 const BODY_METHODS = new Set<HTTPMethod>(["POST", "PUT", "PATCH"]);
 
@@ -13,9 +14,12 @@ export class Server extends NodeServer {
 	public staticRoutes: Map<string, Route> = new Map<string, Route>();
 	public dynamicRoutes: RegisteredRoute[] = [];
 	public readonly knownPaths = new Set<string>();
+	public db: postgres.Sql;
+
 	public constructor() {
 		super();
 		this.logger.info("Initiated Server...");
+		this.db = DB.getInstance(this).getClient();
 	}
 
 	public dispatchRequests() {
@@ -45,7 +49,15 @@ export class Server extends NodeServer {
 			}
 
 			try {
-				await handler({ req, res, ...(params && { params }), query: url.searchParams, body });
+				await handler({
+					req,
+					res,
+					...(params && { params }),
+					query: url.searchParams,
+					body,
+					db: this.db,
+					server: this,
+				});
 			} catch (err) {
 				this.logger.error(err);
 				res.writeHead(500);
@@ -80,6 +92,10 @@ export class Server extends NodeServer {
 		if (!process.env.PORT || Number.isNaN(port)) {
 			throw new Error(`Invalid PORT environment variable: ${process.env.PORT}`);
 		}
+		await this.db`select 1`.catch((e) => {
+			this.logger.error(e.message, { ...e, message: "" });
+			process.exit(1);
+		});
 		await registerRoutes(this);
 		this.listen(port, () => {
 			this.logger.info(`Server has started, listening on http://localhost:${port}`);
