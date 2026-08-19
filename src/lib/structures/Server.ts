@@ -11,15 +11,15 @@ const BODY_METHODS = new Set<HTTPMethod>(["POST", "PUT", "PATCH"]);
 
 export class Server extends NodeServer {
 	public readonly logger = Logger.init();
-	public staticRoutes: Map<string, Route> = new Map<string, Route>();
+	public staticRoutes = new Map<string, Route>();
 	public dynamicRoutes: RegisteredRoute[] = [];
 	public readonly knownPaths = new Set<string>();
-	public db: postgres.Sql;
+	private readonly db: postgres.Sql;
 
 	public constructor() {
 		super();
 		this.logger.info("Initiated Server...");
-		this.db = DB.getInstance(this).getClient();
+		this.db = DB.initialize(this).getClient();
 	}
 
 	public dispatchRequests() {
@@ -68,7 +68,8 @@ export class Server extends NodeServer {
 
 	private resolveHandler(path: string, method: HTTPMethod) {
 		const staticRoute = this.staticRoutes.get(`${method}:${path}`);
-		if (staticRoute?.[method]) return { handler: staticRoute[method], params: undefined };
+		const handler = staticRoute?.[method];
+		if (handler) return { handler, params: undefined };
 
 		for (const dynamicRoute of this.dynamicRoutes) {
 			if (dynamicRoute.method !== method) continue;
@@ -92,14 +93,30 @@ export class Server extends NodeServer {
 		if (!process.env.PORT || Number.isNaN(port)) {
 			throw new Error(`Invalid PORT environment variable: ${process.env.PORT}`);
 		}
-		await this.db`select 1`.catch((e) => {
-			this.logger.error(e.message, { ...e, message: "" });
-			process.exit(1);
-		});
+
+		try {
+			await this.db`select 1`;
+		} catch (e) {
+			this.logger.error((e as Error).message, { ...(e as Error), message: "" });
+			throw e;
+		}
+
 		await registerRoutes(this);
+
+		this.dispatchRequests();
 		this.listen(port, () => {
 			this.logger.info(`Server has started, listening on http://localhost:${port}`);
 		});
-		this.dispatchRequests();
+	}
+
+	public async shutdown() {
+		await DB.getInstance().close();
+
+		return new Promise<void>((resolve, reject) => {
+			super.close((err) => {
+				if (err) reject(err);
+				else resolve();
+			});
+		});
 	}
 }

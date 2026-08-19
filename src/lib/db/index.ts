@@ -8,10 +8,17 @@ export class DB {
 		server.logger.info("Initiated DB...");
 		this.client = postgres(process.env.DATABASE_URL);
 	}
-	public static getInstance(server: Server): DB {
+	public static initialize(server: Server) {
 		return this.instance ?? (this.instance = new DB(server));
+	}
+	public static getInstance(): DB {
+		if (!this.instance) throw new Error("DB uninitialized");
+		return this.instance;
 	}
 	public getClient() {
 		return this.client;
+	}
+	public async close() {
+		return this.client.end();
 	}
 }
