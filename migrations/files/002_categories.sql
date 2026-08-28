@@ -1,0 +1,9 @@
+-- UP
+CREATE TABLE IF NOT EXISTS
+    categories (
+        id SERIAL PRIMARY KEY,
+        NAME VARCHAR(100) NOT NULL UNIQUE
+    );
+
+-- DOWN
+DROP TABLE IF EXISTS categories;
