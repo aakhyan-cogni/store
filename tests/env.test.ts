@@ -1,14 +1,26 @@
-import { expect, test } from "vitest";
+import { describe, expect, it } from "vitest";
 
-test("port is defined", () => {
-	const port = process.env.PORT;
-	expect(port).toBeDefined();
-	expect(port).toBeTypeOf("string");
-	expect(Number(port)).toBeTruthy();
-});
+describe(".env", () => {
+	it("has port", () => {
+		const port = process.env.PORT;
+		expect(port).toBeDefined();
+		expect(port).toBeTypeOf("string");
+		expect(Number(port)).toBeTruthy();
+	});
 
-test("database url is defined", () => {
-	const databaseUrl = process.env.DATABASE_URL;
-	expect(databaseUrl).toBeDefined();
-	expect(databaseUrl!.startsWith("postgres://")).toBeTruthy();
+	it("has database url", () => {
+		const databaseUrl = process.env.DATABASE_URL;
+		expect(databaseUrl).toBeDefined();
+		expect(databaseUrl!.startsWith("postgres://")).toBeTruthy();
+	});
+
+	it("has jwt secret", () => {
+		const jwtSecret = process.env.JWT_SECRET;
+		expect(jwtSecret).toBeDefined();
+	});
+
+	it("has jwt expires", () => {
+		const jwtExpiresIn = process.env.JWT_EXPIRES_IN;
+		expect(jwtExpiresIn).toBeDefined();
+	});
 });

@@ -1,10 +1,11 @@
-import type { Awaitable, HTTPMethod } from "#src/types";
+import type { Awaitable, HTTPMethod, UserRole } from "#src/types";
 import type { IncomingMessage, ServerResponse } from "http";
 import type { Server } from "./Server.js";
 import type postgres from "postgres";
 
 export class Route {
 	public description?: string | undefined;
+	public auth?: RouteAuth | undefined;
 	public GET?(options: MethodOptions): Awaitable<unknown>;
 	public POST?(options: MethodOptions): Awaitable<unknown>;
 	public PUT?(options: MethodOptions): Awaitable<unknown>;
@@ -13,6 +14,7 @@ export class Route {
 
 	public constructor(data: RouteOptions) {
 		this.description = data.description;
+		this.auth = data.auth;
 		if (data.GET) this.GET = data.GET;
 		if (data.POST) this.POST = data.POST;
 		if (data.PUT) this.PUT = data.PUT;
@@ -23,6 +25,7 @@ export class Route {
 
 interface RouteOptions {
 	description?: string;
+	auth?: RouteAuth;
 	GET?: (options: MethodOptions) => Awaitable<unknown>;
 	POST?: (options: MethodOptions) => Awaitable<unknown>;
 	PUT?: (options: MethodOptions) => Awaitable<unknown>;
@@ -30,12 +33,25 @@ interface RouteOptions {
 	DELETE?: (options: MethodOptions) => Awaitable<unknown>;
 }
 
-interface MethodOptions {
+export type RouteAuth = Partial<Record<HTTPMethod, MethodAuth>>;
+
+export interface MethodAuth {
+	required: boolean;
+	roles?: UserRole[];
+}
+
+export interface RequestUser {
+	id: number;
+	role: UserRole;
+}
+
+export interface MethodOptions {
 	req: IncomingMessage;
 	res: ServerResponse<IncomingMessage>;
 	params?: Record<string, string>;
 	query: URLSearchParams;
 	body?: unknown;
+	user?: RequestUser;
 	server: Server;
 	db: postgres.Sql;
 }

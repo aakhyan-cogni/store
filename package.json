@@ -22,13 +22,21 @@
 		"migrate:status": "node --env-file=.env migrations/script.js status"
 	},
 	"devDependencies": {
+		"@types/bcrypt": "^6.0.0",
+		"@types/jsonwebtoken": "^9.0.10",
 		"@types/node": "^26.2.0",
 		"typescript": "^7.0.2",
 		"vitest": "^4.1.10"
 	},
 	"dependencies": {
+		"bcrypt": "^6.0.0",
 		"colorette": "^2.0.20",
+		"jsonwebtoken": "^9.0.3",
 		"postgres": "^3.4.9",
-		"winston": "^3.19.0"
+		"winston": "^3.19.0",
+		"zod": "^4.4.3"
+	},
+	"allowScripts": {
+		"bcrypt@6.0.0": true
 	}
 }

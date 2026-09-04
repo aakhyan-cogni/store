@@ -2,8 +2,10 @@ import { registerRoutes, DB } from "#lib";
 import { Logger } from "./Logger.js";
 import { Parser } from "./Parser.js";
 import { Server as NodeServer } from "http";
+import { z } from "zod";
 import type { RegisteredRoute, Route } from "./Route.js";
 import type { HTTPMethod } from "#src/types";
+import { authorizeRequest } from "../auth/middleware.js";
 import { getRequestUrl } from "../utils.js";
 import type postgres from "postgres";
 
@@ -36,7 +38,14 @@ export class Server extends NodeServer {
 			if (!resolved) {
 				return res.writeHead(this.knownPaths.has(path) || this.hasDynamicMatch(path) ? 405 : 404).end();
 			}
-			const { handler, params } = resolved;
+			const { handler, params, auth } = resolved;
+
+			const authorization = authorizeRequest(req, auth);
+			if (!authorization.authorized) {
+				if (authorization.status === 401) res.setHeader("WWW-Authenticate", "Bearer");
+				this.logger.warn(`Rejected ${method}:${path} with ${authorization.status}`);
+				return res.writeHead(authorization.status).end();
+			}
 
 			let body: unknown;
 			if (BODY_METHODS.has(method)) {
@@ -53,12 +62,18 @@ export class Server extends NodeServer {
 					req,
 					res,
 					...(params && { params }),
+					...(authorization.user && { user: authorization.user }),
 					query: url.searchParams,
 					body,
 					db: this.db,
 					server: this,
 				});
 			} catch (err) {
+				if (err instanceof z.ZodError) {
+					const errMsg = Object.values(err.flatten().fieldErrors).flat().join(", ");
+					this.logger.warn(`Validation failed for ${method}:${path}: ${errMsg}`);
+					return res.writeHead(400).end(errMsg);
+				}
 				this.logger.error(err);
 				res.writeHead(500);
 				res.end();
@@ -69,7 +84,7 @@ export class Server extends NodeServer {
 	private resolveHandler(path: string, method: HTTPMethod) {
 		const staticRoute = this.staticRoutes.get(`${method}:${path}`);
 		const handler = staticRoute?.[method];
-		if (handler) return { handler, params: undefined };
+		if (staticRoute && handler) return { handler, params: undefined, auth: staticRoute.auth?.[method] };
 
 		for (const dynamicRoute of this.dynamicRoutes) {
 			if (dynamicRoute.method !== method) continue;
@@ -79,7 +94,7 @@ export class Server extends NodeServer {
 			dynamicRoute.params.forEach((name, idx) => {
 				params[name] = match[idx + 1]!;
 			});
-			return { handler: dynamicRoute.route[method]!, params };
+			return { handler: dynamicRoute.route[method]!, params, auth: dynamicRoute.route.auth?.[method] };
 		}
 		return null;
 	}

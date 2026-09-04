@@ -1,5 +1,6 @@
 import type { Server } from "#lib";
 import postgres from "postgres";
+export * from "./repositories/index.js";
 
 export class DB {
 	private static instance: DB | undefined;
