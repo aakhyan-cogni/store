@@ -11,13 +11,13 @@ export default new Route({
 		const user = await userDb.findByEmail(loginBody.email);
 		const passwordMatches = await Password.verify(loginBody.password, user?.password_hash ?? DUMMY_PASSWORD_HASH);
 		if (!user || !passwordMatches) {
-			res.writeHead(401, { "Content-Type": "application/json" });
+			res.writeHead(401);
 			return res.end(JSON.stringify({ message: "Invalid email or password" }));
 		}
 
 		const token = new JwtService().sign({ sub: String(user.id), email: user.email, role: user.role });
 
-		res.writeHead(200, { "Content-Type": "application/json" });
+		res.writeHead(200);
 		res.end(JSON.stringify({ token }));
 	},
 });

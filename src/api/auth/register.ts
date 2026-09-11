@@ -8,14 +8,14 @@ export default new Route({
 
 		const existingUser = await userDb.findByEmail(registerBody.email);
 		if (existingUser) {
-			res.writeHead(409, { "Content-Type": "application/json" });
+			res.writeHead(409);
 			return res.end(JSON.stringify({ message: "User already exists" }));
 		}
 
 		const password_hash = await Password.hash(registerBody.password);
 		const newUser = await userDb.create({ email: registerBody.email, name: registerBody.name, password_hash });
 
-		res.writeHead(201, { "Content-Type": "application/json" });
+		res.writeHead(201);
 		res.end(JSON.stringify({ message: "Registered successfully", user: userSchema.parse(newUser) }));
 	},
 });

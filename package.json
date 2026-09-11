@@ -17,16 +17,21 @@
 		"watch": "tsc --watch",
 		"start": "node --env-file=.env dist/index.js",
 		"typecheck": "tsc --noEmit",
+		"up": "concurrently \"npm run watch\" \"npm run dev\" --kill-others",
 		"migrate:up": "node --env-file=.env migrations/script.js up",
 		"migrate:down": "node --env-file=.env migrations/script.js down",
-		"migrate:status": "node --env-file=.env migrations/script.js status"
+		"migrate:status": "node --env-file=.env migrations/script.js status",
+		"ui": "vitest --ui"
 	},
 	"devDependencies": {
 		"@types/bcrypt": "^6.0.0",
 		"@types/jsonwebtoken": "^9.0.10",
 		"@types/node": "^26.2.0",
+		"@vitest/coverage-v8": "^5.0.0",
+		"@vitest/ui": "^5.0.0",
+		"concurrently": "^10.0.5",
 		"typescript": "^7.0.2",
-		"vitest": "^4.1.10"
+		"vitest": "^5.0.0"
 	},
 	"dependencies": {
 		"bcrypt": "^6.0.0",

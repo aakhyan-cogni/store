@@ -1,4 +1,4 @@
-import { registerRoutes, DB } from "#lib";
+import { registerRoutes, DB, CustomError } from "#lib";
 import { Logger } from "./Logger.js";
 import { Parser } from "./Parser.js";
 import { Server as NodeServer } from "http";
@@ -7,7 +7,7 @@ import type { RegisteredRoute, Route } from "./Route.js";
 import type { HTTPMethod } from "#src/types";
 import { authorizeRequest } from "../auth/middleware.js";
 import { getRequestUrl } from "../utils.js";
-import type postgres from "postgres";
+import postgres from "postgres";
 
 const BODY_METHODS = new Set<HTTPMethod>(["POST", "PUT", "PATCH"]);
 
@@ -58,6 +58,7 @@ export class Server extends NodeServer {
 			}
 
 			try {
+				res.setHeader("content-type", "application/json");
 				await handler({
 					req,
 					res,
@@ -72,9 +73,17 @@ export class Server extends NodeServer {
 				if (err instanceof z.ZodError) {
 					const errMsg = Object.values(err.flatten().fieldErrors).flat().join(", ");
 					this.logger.warn(`Validation failed for ${method}:${path}: ${errMsg}`);
-					return res.writeHead(400).end(errMsg);
+					return res.writeHead(400).end(JSON.stringify(z.treeifyError(err)));
+				} else if (err instanceof CustomError) {
+					this.logger.warn(`Custom Error invoked for ${method}:${path}: ${err.message}`);
+					return res.writeHead(err.getCode()).end(JSON.stringify(err));
+				} else if (err instanceof postgres.PostgresError) {
+					this.logger.warn(`Postgres Error invoked for ${method}:${path}: ${err.message}`);
+					return res.writeHead(400).end(JSON.stringify(err));
 				}
-				this.logger.error(err);
+				{
+					(err as Error).message && this.logger.error((err as Error).message);
+				}
 				res.writeHead(500);
 				res.end();
 			}
