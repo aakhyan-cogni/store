@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const dbUserSchema = z.object({
-	id: z.number().int(),
+	id: z.int(),
 	name: z.string().min(1).max(100),
 	email: z.email(),
 	password_hash: z.string(),

@@ -24,5 +24,5 @@ export function getRequestUrl(req: IncomingMessage) {
 
 export function buildApiRoute(folder: string, file: string) {
 	const name = file.replace(/\.js$/, "");
-	return `/api${folder ? `/${folder}` : ""}/${name}`;
+	return `/api${folder ? `/${folder}` : ""}${file === "index.js" ? "" : `/${name}`}`;
 }

@@ -1,13 +1,13 @@
 import { z } from "zod";
 
 export const dbProductSchema = z.object({
-	id: z.number().int(),
+	id: z.int(),
 	is_active: z.boolean().default(true),
-	category_id: z.number().int(),
+	category_id: z.int(),
 	name: z.string().min(1).max(100),
 	description: z.string().nullable().optional(),
 	price: z.string(),
-	stock: z.number().int().default(0),
+	stock: z.int().default(0),
 	created_at: z.date(),
 });
 

@@ -22,6 +22,17 @@ export class ProductRepository {
 		return z.array(publicProductSchema).parse(rows);
 	}
 
+	public async exists(id: number) {
+		const [product] = await this.db`
+            SELECT stock
+            FROM products
+            WHERE is_active = TRUE
+                AND id = ${id};
+        `;
+
+		return product as { stock: number } | undefined;
+	}
+
 	public async create(data: Omit<DBProduct, "id" | "created_at" | "is_active"> & { is_active?: boolean }) {
 		const [product] = await this.db`
             INSERT INTO products (
