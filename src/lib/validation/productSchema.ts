@@ -30,3 +30,28 @@ export const updateProductSchema = z
 	})
 	.partial()
 	.refine((data) => Object.keys(data).length > 0, { message: "at least one field must be updated" });
+
+export const MAX_PRODUCT_PAGE_SIZE = 100;
+export const DEFAULT_PRODUCT_PAGE_SIZE = 20;
+
+/** The storefront browse window: what to look for, and which page of it. */
+export const productQuerySchema = z
+	.object({
+		q: z.string().trim().min(1).optional(),
+		category_id: z.coerce.number().int().positive().optional(),
+		min_price: moneyStringSchema.optional(),
+		max_price: moneyStringSchema.optional(),
+		limit: z.coerce
+			.number()
+			.int()
+			.positive()
+			.default(DEFAULT_PRODUCT_PAGE_SIZE)
+			.transform((value) => Math.min(value, MAX_PRODUCT_PAGE_SIZE)),
+		offset: z.coerce.number().int().min(0).default(0),
+	})
+	.refine((query) => !(query.min_price && query.max_price) || Number(query.min_price) <= Number(query.max_price), {
+		message: "min_price cannot be greater than max_price",
+		path: ["min_price"],
+	});
+
+export type ProductQuery = z.infer<typeof productQuerySchema>;

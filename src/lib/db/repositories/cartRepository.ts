@@ -1,18 +1,22 @@
-import type postgres from "postgres";
+import type { Database } from "../types.js";
 import { z } from "zod";
 import { dbCartItemSchema, publicCartItemSchema } from "#src/lib/validation";
 
 export class CartRepository {
-	public constructor(private readonly db: postgres.Sql) {}
+	public constructor(private readonly db: Database) {}
 
+	/**
+	 * Every line in the user's cart, including any whose product has since
+	 * been delisted: checkout has to refuse those rather than silently skip
+	 * them, and the shopper has to be able to see them to remove them.
+	 */
 	public async getByUserId(userId: number) {
 		const rows = await this.db`
-            SELECT product_id, name, price, stock, quantity
+            SELECT product_id, name, price, stock, quantity, COALESCE(is_active, FALSE) AS listed
             FROM cart_items
             INNER JOIN products
                 ON cart_items.product_id = products.id
-            WHERE user_id = ${userId}
-                AND is_active = TRUE;
+            WHERE user_id = ${userId};
         `;
 
 		return z.array(publicCartItemSchema).parse(rows);

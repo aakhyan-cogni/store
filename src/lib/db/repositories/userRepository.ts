@@ -1,11 +1,11 @@
-import type postgres from "postgres";
+import type { Database } from "../types.js";
 import { z } from "zod";
 import { dbUserSchema } from "#lib";
 
 type DBUser = z.infer<typeof dbUserSchema>;
 
 export class UserRepository {
-	public constructor(private readonly db: postgres.Sql) {}
+	public constructor(private readonly db: Database) {}
 
 	public async getAll() {
 		const rows = await this.db`SELECT * FROM users;`;

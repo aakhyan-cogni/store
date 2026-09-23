@@ -23,3 +23,4 @@ export class DB {
 		return this.client.end();
 	}
 }
+export * from "./types.js";

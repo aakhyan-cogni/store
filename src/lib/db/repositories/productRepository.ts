@@ -1,15 +1,17 @@
 import { CustomError } from "#src/lib/structures";
-import { dbProductSchema, publicProductSchema, updateProductSchema } from "#src/lib/validation";
-import type postgres from "postgres";
+import { escapeLikePattern } from "#src/lib/products";
+import { dbProductSchema, publicProductSchema, type ProductQuery, updateProductSchema } from "#src/lib/validation";
+import type { Database } from "../types.js";
 import { z } from "zod";
 
 type DBProduct = z.infer<typeof dbProductSchema>;
 
 export class ProductRepository {
-	public constructor(private readonly db: postgres.Sql) {}
+	public constructor(private readonly db: Database) {}
 
-	public async getAll() {
-		const rows = await this.db`
+	public async getAll(query: ProductQuery) {
+		const db = this.db;
+		const rows = await db`
             SELECT id,
                 category_id,
                 name,
@@ -18,7 +20,14 @@ export class ProductRepository {
                 stock,
                 created_at
             FROM products
-            WHERE is_active = TRUE;`;
+            WHERE is_active = TRUE
+                ${query.q ? db`AND name ILIKE ${`%${escapeLikePattern(query.q)}%`}` : db``}
+                ${query.category_id ? db`AND category_id = ${query.category_id}` : db``}
+                ${query.min_price ? db`AND price >= ${query.min_price}` : db``}
+                ${query.max_price ? db`AND price <= ${query.max_price}` : db``}
+            ORDER BY id
+            LIMIT ${query.limit}
+            OFFSET ${query.offset};`;
 		return z.array(publicProductSchema).parse(rows);
 	}
 

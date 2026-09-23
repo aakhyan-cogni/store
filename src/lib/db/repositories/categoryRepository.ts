@@ -1,11 +1,11 @@
-import type postgres from "postgres";
+import type { Database } from "../types.js";
 import { z } from "zod";
 import { CustomError, dbCategorySchema } from "#src/lib";
 import type { PostgresError } from "postgres";
 type DBCategory = z.infer<typeof dbCategorySchema>;
 
 export class CategoryRepository {
-	public constructor(private readonly db: postgres.Sql) {}
+	public constructor(private readonly db: Database) {}
 
 	public async getAll() {
 		const rows = await this.db`SELECT * FROM categories;`;
