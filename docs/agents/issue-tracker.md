@@ -38,7 +38,7 @@ Two hard constraints for agents:
 
 - **Do not call the `gh` CLI.** It is not installed on this machine and cannot
   be installed. Never attempt `gh issue create`, `gh issue list`, or any other
-  `gh` invocation as part of a skill workflow. The GitHub MCP connector *is*
+  `gh` invocation as part of a skill workflow. The GitHub MCP connector _is_
   authorized, so use its tools if GitHub access is genuinely needed — but for
   issue tracking, see the next point.
 - **Do not create or reference GitHub Issues** by number or URL. There are none.
