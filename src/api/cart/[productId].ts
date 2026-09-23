@@ -1,4 +1,4 @@
-import { CartRepository, CustomError, ProductRepository, Route, updateCartItemSchema } from "#lib";
+import { CartRepository, CustomError, parseRouteId, ProductRepository, Route, updateCartItemSchema } from "#lib";
 
 export default new Route({
 	description: "Cart Product management",
@@ -23,18 +23,16 @@ export default new Route({
 
 		res.end(JSON.stringify(updated));
 	},
+	// Deliberately does not require the product to still be listed: a delisted
+	// line has to be removable, or the cart holding it can never check out.
 	DELETE: async ({ res, db, user, params }) => {
 		if (!user) throw new Error("user not defined");
-		const productId = Number(params?.productId);
-		if (isNaN(productId)) throw new CustomError(404, "product not found");
+		const productId = parseRouteId(params?.productId);
+		if (!productId) throw new CustomError(404, "item does not exist in cart");
 
-		const productRepo = new ProductRepository(db);
-		const cartRepo = new CartRepository(db);
+		const removed = await new CartRepository(db).removeItem(user.id, productId);
+		if (!removed) throw new CustomError(404, "item does not exist in cart");
 
-		const exists = await productRepo.exists(productId);
-		if (!exists) throw new CustomError(404, "product not found");
-
-		await cartRepo.removeItem(user.id, productId);
 		res.writeHead(204).end();
 	},
 });

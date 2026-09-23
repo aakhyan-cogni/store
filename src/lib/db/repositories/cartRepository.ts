@@ -70,7 +70,7 @@ export class CartRepository {
             RETURNING *;
         `;
 
-		return dbCartItemSchema.parse(item);
+		return item ? dbCartItemSchema.parse(item) : null;
 	}
 
 	public async clearCart(userId: number) {

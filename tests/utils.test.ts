@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildApiRoute, compileRoute, isDynamicRoute } from "../src/lib/utils.js";
+import { buildApiRoute, compileRoute, isDynamicRoute, parseRouteId } from "../src/lib/utils.js";
 
 describe("isDynamicRoute", () => {
 	it("detects dynamic segments", () => {
@@ -44,5 +44,35 @@ describe("buildApiRoute", () => {
 
 	it("builds a dynamic route", () => {
 		expect(buildApiRoute("products", "[id].js")).toBe("/api/products/[id]");
+	});
+});
+
+describe("parseRouteId", () => {
+	it("reads a positive integer id", () => {
+		expect(parseRouteId("42")).toBe(42);
+	});
+
+	it("rejects a non-numeric id", () => {
+		expect(parseRouteId("abc")).toBeNull();
+	});
+
+	it("rejects a missing id", () => {
+		expect(parseRouteId(undefined)).toBeNull();
+	});
+
+	it("rejects a fractional id, which no SERIAL column can hold", () => {
+		expect(parseRouteId("1.5")).toBeNull();
+	});
+
+	it("rejects a negative id", () => {
+		expect(parseRouteId("-1")).toBeNull();
+	});
+
+	it("rejects zero", () => {
+		expect(parseRouteId("0")).toBeNull();
+	});
+
+	it("rejects an id that is merely numeric-ish", () => {
+		expect(parseRouteId("12abc")).toBeNull();
 	});
 });

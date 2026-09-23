@@ -20,9 +20,12 @@ export class Parser {
 			req.on("error", reject);
 			req.on("end", () => {
 				try {
+					// Nothing was sent, so there is nothing to interpret: a
+					// bodyless POST (checkout, for one) needs no content-type.
+					if (!body) return void resolve(undefined as T);
 					if (!contentType) return void reject(new Error("No Content Type defined"));
 					if (contentType.endsWith("json")) {
-						resolve(body ? JSON.parse(body) : (undefined as T));
+						resolve(JSON.parse(body));
 					} else resolve(body as T); // TODO: parse other content
 				} catch (err) {
 					reject(err);

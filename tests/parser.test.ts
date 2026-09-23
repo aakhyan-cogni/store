@@ -78,3 +78,17 @@ describe("Parser.parseURL", () => {
 		expect(query.get("x")).toBe("1");
 	});
 });
+
+describe("Parser.parseBody with no body at all", () => {
+	it("resolves undefined when there is no body and no content-type", async () => {
+		// A bodyless POST — checkout, for one — has nothing to interpret, so a
+		// missing content-type is not an error.
+		const req = fakeRequest({ chunks: [] });
+		await expect(Parser.parseBody(req)).resolves.toBeUndefined();
+	});
+
+	it("still rejects a body sent without a content-type", async () => {
+		const req = fakeRequest({ chunks: ["{}"] });
+		await expect(Parser.parseBody(req)).rejects.toThrow("No Content Type defined");
+	});
+});
