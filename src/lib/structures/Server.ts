@@ -1,27 +1,44 @@
-import { registerRoutes, DB, CustomError } from "#lib";
+import { randomUUID } from "node:crypto";
+import { registerRoutes } from "../registry/index.js";
+import { DB } from "../db/index.js";
 import { Logger } from "./Logger.js";
 import { Parser } from "./Parser.js";
 import { Server as NodeServer } from "http";
-import { z } from "zod";
 import type { RegisteredRoute, Route } from "./Route.js";
-import type { HTTPMethod } from "#src/types";
+import { HTTP_METHODS, type HTTPMethod } from "#src/types";
 import { authorizeRequest } from "../auth/middleware.js";
+import { toErrorResponse } from "../errors.js";
+import { loadEnv } from "../env.js";
 import { getRequestUrl } from "../utils.js";
 import postgres from "postgres";
 
 const BODY_METHODS = new Set<HTTPMethod>(["POST", "PUT", "PATCH"]);
 
+/** How long a client may take over its headers, and over the whole request. */
+const HEADERS_TIMEOUT_MS = 10_000;
+const REQUEST_TIMEOUT_MS = 30_000;
+
+/** How long in-flight requests get to finish once shutdown has started. */
+const DRAIN_TIMEOUT_MS = 10_000;
+const IDLE_SWEEP_MS = 250;
+
+function isHTTPMethod(method: string | undefined): method is HTTPMethod {
+	return HTTP_METHODS.includes(method as HTTPMethod);
+}
+
 export class Server extends NodeServer {
 	public readonly logger = Logger.init();
 	public staticRoutes = new Map<string, Route>();
 	public dynamicRoutes: RegisteredRoute[] = [];
-	public readonly knownPaths = new Set<string>();
 	private readonly db: postgres.Sql;
+	private shuttingDown: Promise<void> | undefined;
 
 	public constructor() {
 		super();
 		this.logger.info("Initiated Server...");
 		this.db = DB.initialize(this).getClient();
+		this.headersTimeout = HEADERS_TIMEOUT_MS;
+		this.requestTimeout = REQUEST_TIMEOUT_MS;
 	}
 
 	public dispatchRequests() {
@@ -32,11 +49,22 @@ export class Server extends NodeServer {
 			}
 			const url = getRequestUrl(req);
 			const path = url.pathname;
-			const method = req.method as HTTPMethod;
+
+			// Narrowed rather than cast: `req.method` is whatever the client
+			// sent, and the union only covers what this server implements.
+			if (!isHTTPMethod(req.method)) {
+				const allowed = this.allowedMethods(path);
+				if (allowed.length) res.setHeader("allow", allowed.join(", "));
+				return res.writeHead(501).end();
+			}
+			const method = req.method;
 
 			const resolved = this.resolveHandler(path, method);
 			if (!resolved) {
-				return res.writeHead(this.knownPaths.has(path) || this.hasDynamicMatch(path) ? 405 : 404).end();
+				const allowed = this.allowedMethods(path);
+				// RFC 9110: a 405 has to say what the resource does support.
+				if (allowed.length) res.setHeader("allow", allowed.join(", "));
+				return res.writeHead(allowed.length ? 405 : 404).end();
 			}
 			const { handler, params, auth } = resolved;
 
@@ -70,22 +98,12 @@ export class Server extends NodeServer {
 					server: this,
 				});
 			} catch (err) {
-				if (err instanceof z.ZodError) {
-					const errMsg = Object.values(err.flatten().fieldErrors).flat().join(", ");
-					this.logger.warn(`Validation failed for ${method}:${path}: ${errMsg}`);
-					return res.writeHead(400).end(JSON.stringify(z.treeifyError(err)));
-				} else if (err instanceof CustomError) {
-					this.logger.warn(`Custom Error invoked for ${method}:${path}: ${err.message}`);
-					return res.writeHead(err.getCode()).end(JSON.stringify(err));
-				} else if (err instanceof postgres.PostgresError) {
-					this.logger.warn(`Postgres Error invoked for ${method}:${path}: ${err.message}`);
-					return res.writeHead(400).end(JSON.stringify(err));
-				}
-				{
-					(err as Error).message && this.logger.error((err as Error).message);
-				}
-				res.writeHead(500);
-				res.end();
+				const requestId = randomUUID();
+				const { status, body: errorBody, logLevel, logMessage } = toErrorResponse(err, requestId);
+
+				this.logger[logLevel](`${method}:${path} ${logMessage}`);
+				if (res.headersSent) return res.end();
+				res.writeHead(status).end(JSON.stringify(errorBody));
 			}
 		});
 	}
@@ -108,15 +126,19 @@ export class Server extends NodeServer {
 		return null;
 	}
 
-	private hasDynamicMatch(path: string) {
-		return this.dynamicRoutes.some((route) => route.regex.test(path));
+	/** Which methods this path answers, read back out of the route tables. */
+	private allowedMethods(path: string) {
+		const allowed = HTTP_METHODS.filter((method) => Boolean(this.staticRoutes.get(`${method}:${path}`)?.[method]));
+		for (const route of this.dynamicRoutes) {
+			if (route.regex.test(path) && !allowed.includes(route.method)) allowed.push(route.method);
+		}
+		return allowed;
 	}
 
 	public async start() {
-		const port = Number(process.env.PORT);
-		if (!process.env.PORT || Number.isNaN(port)) {
-			throw new Error(`Invalid PORT environment variable: ${process.env.PORT}`);
-		}
+		// Before anything binds a port or opens a connection: a bad secret or a
+		// missing URL should stop the boot, not surface as a 500 later.
+		const env = loadEnv();
 
 		try {
 			await this.db`select 1`;
@@ -128,19 +150,49 @@ export class Server extends NodeServer {
 		await registerRoutes(this);
 
 		this.dispatchRequests();
-		this.listen(port, () => {
-			this.logger.info(`Server has started, listening on http://localhost:${port}`);
+		this.listen(env.PORT, () => {
+			this.logger.info(`Server has started, listening on http://localhost:${env.PORT}`);
 		});
 	}
 
+	/**
+	 * Stops accepting work, lets what is in flight finish, and only then closes
+	 * the pool — in that order, because ending the pool first would fail every
+	 * request currently mid-query.
+	 *
+	 * Bounded: `close` alone waits for every keep-alive socket to go idle, so a
+	 * single parked client would otherwise hold the process open until the
+	 * orchestrator kills it.
+	 */
 	public async shutdown() {
-		await DB.getInstance().close();
+		// A second SIGTERM joins the shutdown already running rather than
+		// starting a competing one.
+		return (this.shuttingDown ??= this.drainAndClose());
+	}
 
-		return new Promise<void>((resolve, reject) => {
-			super.close((err) => {
-				if (err) reject(err);
-				else resolve();
-			});
-		});
+	private async drainAndClose() {
+		this.logger.info("Shutting down...");
+
+		const closed = new Promise<void>((resolve) => super.close(() => resolve()));
+
+		// Swept repeatedly, not once: a keep-alive socket that goes idle after
+		// its request finishes would otherwise hold `close` open until the
+		// client happened to hang up.
+		this.closeIdleConnections();
+		const sweep = setInterval(() => this.closeIdleConnections(), IDLE_SWEEP_MS).unref();
+
+		const drained = await Promise.race([
+			closed.then(() => true),
+			new Promise<false>((resolve) => setTimeout(() => resolve(false), DRAIN_TIMEOUT_MS).unref()),
+		]);
+		clearInterval(sweep);
+
+		if (!drained) {
+			this.logger.warn(`In-flight requests did not finish within ${DRAIN_TIMEOUT_MS}ms, closing anyway`);
+			this.closeAllConnections();
+		}
+
+		await DB.getInstance().close();
+		this.logger.info("Shutdown complete");
 	}
 }

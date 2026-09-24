@@ -54,6 +54,7 @@ export class CartRepository {
 		return dbCartItemSchema.parse(item);
 	}
 
+	/** `null` when the line is not in the cart, for the caller to turn into a 404. */
 	public async updateQuantity(userId: number, productId: number, quantity: number) {
 		const [item] = await this.db`
             UPDATE cart_items
@@ -63,7 +64,7 @@ export class CartRepository {
             RETURNING *;
         `;
 
-		return dbCartItemSchema.parse(item);
+		return item ? dbCartItemSchema.parse(item) : null;
 	}
 
 	public async removeItem(userId: number, productId: number) {

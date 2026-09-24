@@ -1,18 +1,33 @@
 import { z } from "zod";
 import { moneyStringSchema } from "./moneySchema.js";
 
+/**
+ * A product row as the database holds it. `is_active` and `stock` are required
+ * rather than defaulted: the columns are `NOT NULL` (migration 008), and a
+ * default here would paper over a row that had drifted from that instead of
+ * failing where the drift can be seen.
+ */
 export const dbProductSchema = z.object({
 	id: z.int(),
-	is_active: z.boolean().default(true),
+	is_active: z.boolean(),
 	category_id: z.int(),
 	name: z.string().min(1).max(100),
 	description: z.string().nullable().optional(),
 	price: moneyStringSchema,
-	stock: z.int().min(0).default(0),
+	stock: z.int().min(0),
 	created_at: z.date(),
 });
 
-export const newProductSchema = dbProductSchema.omit({ id: true, created_at: true });
+/**
+ * `is_active` is deliberately absent: whether a product is listed is a
+ * lifecycle decision the DELETE route owns, not something a creation request
+ * may set. Accepting it would let a caller create a product invisible to every
+ * read path, since all of them filter on `is_active = TRUE`.
+ */
+export const newProductSchema = dbProductSchema
+	.omit({ id: true, created_at: true, is_active: true })
+	.extend({ stock: z.int().min(0).default(0) });
+
 export const publicProductSchema = dbProductSchema.omit({ is_active: true });
 
 /**

@@ -6,3 +6,5 @@ export * from "./auth/index.js";
 export * from "./orders/index.js";
 export * from "./products/index.js";
 export * from "./utils.js";
+export * from "./env.js";
+export * from "./errors.js";

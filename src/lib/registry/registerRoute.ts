@@ -1,5 +1,5 @@
 import type { Route, Server } from "#src/lib/structures";
-import type { HTTPMethod } from "#src/types";
+import { HTTP_METHODS } from "#src/types";
 import { readdir } from "node:fs/promises";
 import { buildApiRoute, compileRoute, isDynamicRoute } from "../utils.js";
 
@@ -17,7 +17,7 @@ async function registerFolder(server: Server, folder: string) {
 		const apiRoute = buildApiRoute(folder, file);
 		if (isDynamicRoute(apiRoute)) {
 			const { regex, params } = compileRoute(apiRoute);
-			for (const method of getMethods()) {
+			for (const method of HTTP_METHODS) {
 				if (route[method]) {
 					server.dynamicRoutes.push({
 						method,
@@ -30,10 +30,9 @@ async function registerFolder(server: Server, folder: string) {
 				}
 			}
 		} else {
-			for (const method of getMethods()) {
+			for (const method of HTTP_METHODS) {
 				if (route[method]) {
 					server.staticRoutes.set(`${method}:${apiRoute}`, route);
-					server.knownPaths.add(apiRoute);
 					server.logger.info(`Registered [${method}] for ${apiRoute}`);
 				}
 			}
@@ -49,8 +48,4 @@ async function registerFolder(server: Server, folder: string) {
 function filterRoute(route: string) {
 	if (route.endsWith(".js") || !route.includes(".")) return true;
 	return false;
-}
-
-function getMethods(): HTTPMethod[] {
-	return ["DELETE", "GET", "PATCH", "POST", "PUT"];
 }

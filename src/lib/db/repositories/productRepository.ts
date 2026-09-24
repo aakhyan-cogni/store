@@ -42,10 +42,10 @@ export class ProductRepository {
 		return product as { stock: number } | undefined;
 	}
 
-	public async create(data: Omit<DBProduct, "id" | "created_at" | "is_active"> & { is_active?: boolean }) {
+	/** `is_active` is not settable here: a new product is listed, full stop. */
+	public async create(data: Omit<DBProduct, "id" | "created_at" | "is_active">) {
 		const [product] = await this.db`
             INSERT INTO products (
-                is_active,
                 category_id,
                 name,
                 description,
@@ -53,7 +53,6 @@ export class ProductRepository {
                 stock
             )
             VALUES (
-                ${data.is_active ?? true},
                 ${data.category_id},
                 ${data.name},
                 ${data.description || null},

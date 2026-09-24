@@ -1,4 +1,4 @@
-import { CategoryRepository, newCategorySchema, ProductRepository, Route } from "#lib";
+import { CategoryRepository, newCategorySchema, Route } from "#lib";
 
 export default new Route({
 	description: "Create new category",

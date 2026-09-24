@@ -34,4 +34,17 @@ describe("newProductSchema", () => {
 	it("refuses a price that is not money", () => {
 		expect(() => newProductSchema.parse({ ...product, price: "19.999" })).toThrow();
 	});
+
+	it("defaults stock to zero", () => {
+		const { stock, ...withoutStock } = product;
+		expect(newProductSchema.parse(withoutStock).stock).toBe(0);
+	});
+
+	it("ignores a client-supplied is_active", () => {
+		// Creating a product delisted would hide it from every read path, all
+		// of which filter on is_active = TRUE. Listing is the DELETE route's
+		// decision, not a field on the creation request.
+		const parsed = newProductSchema.parse({ ...product, is_active: false });
+		expect(parsed).not.toHaveProperty("is_active");
+	});
 });

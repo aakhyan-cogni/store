@@ -5,9 +5,9 @@ export default new Route({
 	auth: { PATCH: { required: true }, DELETE: { required: true } },
 	PATCH: async ({ res, db, user, body, params }) => {
 		if (!user) throw new Error("user not defined");
-		const productId = Number(params?.productId);
+		const productId = parseRouteId(params?.productId);
 		const data = updateCartItemSchema.parse(body);
-		if (isNaN(productId)) throw new CustomError(404, "product not found");
+		if (!productId) throw new CustomError(404, "product not found");
 
 		const productRepo = new ProductRepository(db);
 		const cartRepo = new CartRepository(db);
@@ -19,7 +19,10 @@ export default new Route({
 		if (!item) throw new CustomError(404, "item does not exist in cart");
 		if (data.quantity > stock) throw new CustomError(409, "Requested quantity exceeds available stock");
 
+		// Between the read above and this write, another request may have
+		// removed the line: a vanished row is a 404, not a validation failure.
 		const updated = await cartRepo.updateQuantity(user.id, productId, data.quantity);
+		if (!updated) throw new CustomError(404, "item does not exist in cart");
 
 		res.end(JSON.stringify(updated));
 	},

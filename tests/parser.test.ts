@@ -3,7 +3,7 @@ import type { IncomingMessage } from "node:http";
 import { describe, expect, it } from "vitest";
 import { Parser } from "../src/lib/structures/Parser.js";
 
-function fakeRequest(options: { url?: string; contentType?: string; chunks?: string[] }) {
+function fakeRequest(options: { url?: string; contentType?: string; chunks?: (string | Buffer)[] }) {
 	const req = new EventEmitter() as EventEmitter & IncomingMessage;
 	req.url = options.url ?? "/";
 	req.headers = options.contentType ? { "content-type": options.contentType } : {};
@@ -61,6 +61,31 @@ describe("Parser.parseBody", () => {
 		const promise = Parser.parseBody(req);
 		req.emit("error", new Error("socket hang up"));
 		await expect(promise).rejects.toThrow("socket hang up");
+	});
+});
+
+describe("Parser.parseBody across chunk boundaries", () => {
+	it("decodes a multi-byte character split between two chunks", async () => {
+		// What a TCP boundary does to real traffic: decoding each chunk on its
+		// own turns the split character into two replacement characters, and
+		// which requests break depends on packet timing.
+		const payload = Buffer.from(JSON.stringify({ name: "Café Münster 😀" }), "utf8");
+		const split = payload.indexOf(Buffer.from("é", "utf8")) + 1;
+
+		const req = fakeRequest({
+			contentType: "application/json",
+			chunks: [payload.subarray(0, split), payload.subarray(split)],
+		});
+
+		await expect(Parser.parseBody(req)).resolves.toEqual({ name: "Café Münster 😀" });
+	});
+
+	it("decodes a body split one byte at a time", async () => {
+		const payload = Buffer.from(JSON.stringify({ q: "日本語" }), "utf8");
+		const chunks = Array.from(payload, (byte) => Buffer.of(byte));
+
+		const req = fakeRequest({ contentType: "application/json", chunks });
+		await expect(Parser.parseBody(req)).resolves.toEqual({ q: "日本語" });
 	});
 });
 

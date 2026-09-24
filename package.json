@@ -11,7 +11,7 @@
 		"#src/*": "./dist/*/index.js"
 	},
 	"scripts": {
-		"test": "vitest",
+		"test": "vitest run",
 		"dev": "node --watch --env-file=.env dist/index.js",
 		"build": "tsc",
 		"watch": "tsc --watch",
@@ -23,7 +23,8 @@
 		"migrate:up": "node --env-file=.env migrations/script.js up",
 		"migrate:down": "node --env-file=.env migrations/script.js down",
 		"migrate:status": "node --env-file=.env migrations/script.js status",
-		"ui": "vitest --ui"
+		"ui": "vitest --ui",
+		"test:watch": "vitest"
 	},
 	"devDependencies": {
 		"@types/bcrypt": "^6.0.0",

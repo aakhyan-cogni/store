@@ -4,7 +4,14 @@ import { describe, expect, it } from "vitest";
 import { authorizeRequest } from "../src/lib/auth/middleware.js";
 import type { MethodAuth } from "../src/lib/structures/Route.js";
 
-const SECRET = process.env.JWT_SECRET!;
+// The suite's own secret, not the developer's: the middleware now reads a
+// validated environment, and a machine whose .env holds a weak secret should
+// fail to boot rather than fail these tests.
+const SECRET = "test-secret-with-at-least-32-characters";
+process.env.JWT_SECRET = SECRET;
+process.env.PORT ??= "5000";
+process.env.DATABASE_URL ??= "postgres://localhost:5432/store";
+
 const ADMIN_ONLY: MethodAuth = { required: true, roles: ["ADMIN"] };
 const ANY_ROLE: MethodAuth = { required: true };
 
