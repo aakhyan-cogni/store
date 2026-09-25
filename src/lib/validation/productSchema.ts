@@ -49,6 +49,29 @@ export const updateProductSchema = z
 export const MAX_PRODUCT_PAGE_SIZE = 100;
 export const DEFAULT_PRODUCT_PAGE_SIZE = 20;
 
+/**
+ * The query values accepted at the HTTP boundary. This schema omits the
+ * runtime page-size transform so OpenAPI can represent it.
+ */
+export const productQueryContractSchema = z
+	.object({
+		q: z.string().optional().describe("Case-insensitive Product name search; blank values are ignored"),
+		category_id: z.coerce.number().int().positive().optional().describe("Only Products in this Category"),
+		min_price: moneyStringSchema.optional().describe("Minimum Product Price, inclusive"),
+		max_price: moneyStringSchema.optional().describe("Maximum Product Price, inclusive and not below min_price"),
+		limit: z.coerce
+			.number()
+			.int()
+			.positive()
+			.default(DEFAULT_PRODUCT_PAGE_SIZE)
+			.describe(`Page size; values above ${MAX_PRODUCT_PAGE_SIZE} are capped`),
+		offset: z.coerce.number().int().min(0).default(0).describe("Number of matching Products to skip"),
+	})
+	.refine((query) => !(query.min_price && query.max_price) || Number(query.min_price) <= Number(query.max_price), {
+		message: "min_price cannot be greater than max_price",
+		path: ["min_price"],
+	});
+
 /** The storefront browse window: what to look for, and which page of it. */
 export const productQuerySchema = z
 	.object({
