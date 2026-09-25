@@ -1,51 +1,33 @@
-import type { Route, Server } from "#src/lib/structures";
-import { HTTP_METHODS } from "#src/types";
-import { readdir } from "node:fs/promises";
-import { buildApiRoute, compileRoute, isDynamicRoute } from "../utils.js";
+import type { RegisteredRoute, Route, Server } from "#src/lib/structures";
+import { compileRoute } from "../utils.js";
+import { discoverRouteCatalogue, type RouteCatalogueEntry } from "./routeCatalogue.js";
 
 export async function registerRoutes(server: Server) {
-	await registerFolder(server, "");
+	registerRouteCatalogue(server, await discoverRouteCatalogue());
 }
 
-async function registerFolder(server: Server, folder: string) {
-	const items = (await readdir(`${process.cwd()}/dist/api/${folder}`)).filter(filterRoute);
-	const files = items.filter((r) => r.endsWith(".js"));
+export interface RouteRegistry {
+	staticRoutes: Map<string, Route>;
+	dynamicRoutes: RegisteredRoute[];
+	logger: { info(message: string): unknown };
+}
 
-	for (const file of files) {
-		const importPath = folder ? `../../api/${folder}/${file}` : `../../api/${file}`;
-		const route = (await import(importPath)).default as Route;
-		const apiRoute = buildApiRoute(folder, file);
-		if (isDynamicRoute(apiRoute)) {
-			const { regex, params } = compileRoute(apiRoute);
-			for (const method of HTTP_METHODS) {
-				if (route[method]) {
-					server.dynamicRoutes.push({
-						method,
-						params,
-						path: apiRoute,
-						regex,
-						route,
-					});
-					server.logger.info(`Registered [${method}] for ${apiRoute}`);
-				}
-			}
+export function registerRouteCatalogue(server: RouteRegistry, catalogue: readonly RouteCatalogueEntry[]) {
+	for (const entry of catalogue) {
+		if (!entry.handler) continue;
+
+		if (entry.params.length) {
+			server.dynamicRoutes.push({
+				method: entry.method,
+				params: [...entry.params],
+				path: entry.path,
+				regex: compileRoute(entry.path).regex,
+				route: entry.route,
+			});
 		} else {
-			for (const method of HTTP_METHODS) {
-				if (route[method]) {
-					server.staticRoutes.set(`${method}:${apiRoute}`, route);
-					server.logger.info(`Registered [${method}] for ${apiRoute}`);
-				}
-			}
+			server.staticRoutes.set(`${entry.method}:${entry.path}`, entry.route);
 		}
-	}
 
-	const subFolders = items.filter((r) => !r.endsWith(".js"));
-	for (const subFolder of subFolders) {
-		await registerFolder(server, folder ? `${folder}/${subFolder}` : subFolder);
+		server.logger.info(`Registered [${entry.method}] for ${entry.path}`);
 	}
-}
-
-function filterRoute(route: string) {
-	if (route.endsWith(".js") || !route.includes(".")) return true;
-	return false;
 }
