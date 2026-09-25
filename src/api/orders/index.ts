@@ -16,7 +16,7 @@ export default new Route({
 			responses: {
 				201: { description: "The created order", data: orderWireSchema },
 				409: {
-					description: "The cart is empty or contains an unavailable quantity or product",
+					description: "The Cart is empty, contains an unlisted Product, or contains a Product with insufficient Stock",
 					errors: [{ code: "CONFLICT" }],
 				},
 			},

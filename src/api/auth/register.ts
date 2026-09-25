@@ -18,7 +18,7 @@ export default new Route({
 	contracts: {
 		POST: {
 			summary: "Register a User",
-			description: "Creates a User with the default shopper role.",
+			description: "Creates a User whose Role is USER.",
 			tags: ["Authentication"],
 			requestBody: {
 				schema: registerSchema,

@@ -123,10 +123,14 @@ describe("named wire schemas", () => {
 
 	it("keeps request and query schemas available in input mode", () => {
 		expect(newProductSchema.parse({ category_id: 2, name: "Tea", price: "12.50" })).toMatchObject({ stock: 0 });
-		expect(productQuerySchema.parse({ category_id: "2", limit: "10", offset: "0" })).toEqual({
+		expect(productQuerySchema.parse({ q: "  tea  ", category_id: "2", limit: "101", offset: "0" })).toEqual({
+			q: "tea",
 			category_id: 2,
-			limit: 10,
+			limit: 100,
 			offset: 0,
 		});
+		expect(() => productQuerySchema.parse({ min_price: "12.51", max_price: "12.50" })).toThrow(
+			"min_price cannot be greater than max_price",
+		);
 	});
 });

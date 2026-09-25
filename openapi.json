@@ -209,7 +209,7 @@
 		"/api/auth/register": {
 			"post": {
 				"summary": "Register a User",
-				"description": "Creates a User with the default shopper role.",
+				"description": "Creates a User whose Role is USER.",
 				"tags": [
 					"Authentication"
 				],
@@ -1577,7 +1577,7 @@
 						}
 					},
 					"409": {
-						"description": "The cart is empty or contains an unavailable quantity or product",
+						"description": "The Cart is empty, contains an unlisted Product, or contains a Product with insufficient Stock",
 						"headers": {
 							"x-request-id": {
 								"description": "Request correlation identifier",
@@ -1758,7 +1758,7 @@
 			},
 			"patch": {
 				"summary": "Cancel an order",
-				"description": "Only a pending order owned by the caller can be cancelled.",
+				"description": "Only an Order awaiting payment and owned by the caller can be cancelled.",
 				"tags": [
 					"Order"
 				],

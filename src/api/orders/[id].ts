@@ -38,7 +38,7 @@ export default new Route({
 		},
 		PATCH: {
 			summary: "Cancel an order",
-			description: "Only a pending order owned by the caller can be cancelled.",
+			description: "Only an Order awaiting payment and owned by the caller can be cancelled.",
 			tags: ["Order"],
 			parameters: { path: { id: orderIdParameter } },
 			requestBody: {

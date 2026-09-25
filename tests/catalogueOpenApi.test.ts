@@ -32,6 +32,16 @@ describe("catalogue OpenAPI contracts", () => {
 			"offset",
 			"q",
 		]);
+		expect(
+			Object.fromEntries(browseProducts.parameters.map((parameter: any) => [parameter.name, parameter.schema])),
+		).toMatchObject({
+			category_id: { type: "integer", exclusiveMinimum: 0 },
+			limit: { type: "integer", exclusiveMinimum: 0, default: 20 },
+			max_price: { type: "string", pattern: "^(\\d+)(?:\\.(\\d{1,2}))?$" },
+			min_price: { type: "string", pattern: "^(\\d+)(?:\\.(\\d{1,2}))?$" },
+			offset: { type: "integer", minimum: 0, default: 0 },
+			q: { type: "string" },
+		});
 		expect(browseProducts.responses["200"].content["application/json"].schema.properties).toEqual({
 			data: { $ref: "#/components/schemas/ProductList" },
 			meta: { $ref: "#/components/schemas/Pagination" },

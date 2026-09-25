@@ -50,46 +50,45 @@ export const MAX_PRODUCT_PAGE_SIZE = 100;
 export const DEFAULT_PRODUCT_PAGE_SIZE = 20;
 
 /**
- * The query values accepted at the HTTP boundary. This schema omits the
- * runtime page-size transform so OpenAPI can represent it.
+ * The representable query values accepted at the HTTP boundary. The runtime
+ * schema below derives its normalization from these fields while OpenAPI uses
+ * them without transforms.
  */
-export const productQueryContractSchema = z
-	.object({
-		q: z.string().optional().describe("Case-insensitive Product name search; blank values are ignored"),
-		category_id: z.coerce.number().int().positive().optional().describe("Only Products in this Category"),
-		min_price: moneyStringSchema.optional().describe("Minimum Product Price, inclusive"),
-		max_price: moneyStringSchema.optional().describe("Maximum Product Price, inclusive and not below min_price"),
-		limit: z.coerce
-			.number()
-			.int()
-			.positive()
-			.default(DEFAULT_PRODUCT_PAGE_SIZE)
-			.describe(`Page size; values above ${MAX_PRODUCT_PAGE_SIZE} are capped`),
-		offset: z.coerce.number().int().min(0).default(0).describe("Number of matching Products to skip"),
-	})
-	.refine((query) => !(query.min_price && query.max_price) || Number(query.min_price) <= Number(query.max_price), {
-		message: "min_price cannot be greater than max_price",
-		path: ["min_price"],
-	});
+const productQueryObjectSchema = z.object({
+	q: z.string().optional().describe("Case-insensitive Product name search; blank values are ignored"),
+	category_id: z.coerce.number().int().positive().optional().describe("Only Products in this Category"),
+	min_price: moneyStringSchema.optional().describe("Minimum Product Price, inclusive"),
+	max_price: moneyStringSchema.optional().describe("Maximum Product Price, inclusive and not below min_price"),
+	limit: z.coerce
+		.number()
+		.int()
+		.positive()
+		.default(DEFAULT_PRODUCT_PAGE_SIZE)
+		.describe(`Page size; values above ${MAX_PRODUCT_PAGE_SIZE} are capped`),
+	offset: z.coerce.number().int().min(0).default(0).describe("Number of matching Products to skip"),
+});
+
+function hasValidProductPriceRange(query: { min_price?: string | undefined; max_price?: string | undefined }) {
+	return !(query.min_price && query.max_price) || Number(query.min_price) <= Number(query.max_price);
+}
+
+const productPriceRangeError = {
+	message: "min_price cannot be greater than max_price",
+	path: ["min_price"],
+};
+
+export const productQueryContractSchema = productQueryObjectSchema.refine(
+	hasValidProductPriceRange,
+	productPriceRangeError,
+);
 
 /** The storefront browse window: what to look for, and which page of it. */
 export const productQuerySchema = z
 	.object({
-		q: z.string().trim().min(1).optional(),
-		category_id: z.coerce.number().int().positive().optional(),
-		min_price: moneyStringSchema.optional(),
-		max_price: moneyStringSchema.optional(),
-		limit: z.coerce
-			.number()
-			.int()
-			.positive()
-			.default(DEFAULT_PRODUCT_PAGE_SIZE)
-			.transform((value) => Math.min(value, MAX_PRODUCT_PAGE_SIZE)),
-		offset: z.coerce.number().int().min(0).default(0),
+		...productQueryObjectSchema.shape,
+		q: productQueryObjectSchema.shape.q.transform((value) => value?.trim()).pipe(z.string().min(1).optional()),
+		limit: productQueryObjectSchema.shape.limit.transform((value) => Math.min(value, MAX_PRODUCT_PAGE_SIZE)),
 	})
-	.refine((query) => !(query.min_price && query.max_price) || Number(query.min_price) <= Number(query.max_price), {
-		message: "min_price cannot be greater than max_price",
-		path: ["min_price"],
-	});
+	.refine(hasValidProductPriceRange, productPriceRangeError);
 
 export type ProductQuery = z.infer<typeof productQuerySchema>;
