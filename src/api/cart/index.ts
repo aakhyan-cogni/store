@@ -1,5 +1,7 @@
 import {
 	addToCartSchema,
+	cartMutationResultWireSchema,
+	cartWireSchema,
 	CartRepository,
 	CustomError,
 	parseRequest,
@@ -7,11 +9,46 @@ import {
 	Route,
 	sendData,
 	sendNoContent,
+	validationDetailsWireSchema,
 } from "#lib";
 
 export default new Route({
 	description: "Manage cart",
 	auth: { GET: { required: true }, POST: { required: true }, DELETE: { required: true } },
+	contracts: {
+		GET: {
+			summary: "List cart items",
+			tags: ["Cart"],
+			responses: { 200: { description: "The caller's cart", data: cartWireSchema } },
+		},
+		POST: {
+			summary: "Add a product to the cart",
+			tags: ["Cart"],
+			requestBody: {
+				description: "The product and quantity to add",
+				required: true,
+				schema: addToCartSchema,
+			},
+			responses: {
+				201: { description: "The stored cart item", data: cartMutationResultWireSchema },
+				400: {
+					description: "The request body is invalid",
+					errors: [{ code: "VALIDATION_FAILED", details: validationDetailsWireSchema }],
+				},
+				404: { description: "The product does not exist", errors: [{ code: "NOT_FOUND" }] },
+				409: {
+					description: "The requested quantity exceeds available stock",
+					errors: [{ code: "CONFLICT" }],
+				},
+			},
+		},
+		DELETE: {
+			summary: "Clear the cart",
+			description: "Clearing an empty cart also succeeds.",
+			tags: ["Cart"],
+			responses: { 204: { description: "The cart was cleared" } },
+		},
+	},
 	GET: async ({ res, db, user }) => {
 		if (!user) throw new Error("user undefined");
 		const userId = user.id;

@@ -1,4 +1,21 @@
-import { CustomError, OrderRepository, parseRequest, parseRouteId, Route, sendData, updateOrderSchema } from "#lib";
+import {
+	CustomError,
+	OrderRepository,
+	orderWireSchema,
+	parseRequest,
+	parseRouteId,
+	Route,
+	sendData,
+	updateOrderSchema,
+	validationDetailsWireSchema,
+} from "#lib";
+import { z } from "zod";
+
+const orderIdParameter = {
+	schema: z.string().regex(/^[1-9]\d*$/),
+	description: "The order identifier",
+	example: "42",
+};
 
 function orderIdFrom(params: Record<string, string> | undefined) {
 	const id = parseRouteId(params?.id);
@@ -9,6 +26,40 @@ function orderIdFrom(params: Record<string, string> | undefined) {
 export default new Route({
 	description: "Read or cancel one of the caller's orders",
 	auth: { GET: { required: true }, PATCH: { required: true } },
+	contracts: {
+		GET: {
+			summary: "Get an order",
+			tags: ["Order"],
+			parameters: { path: { id: orderIdParameter } },
+			responses: {
+				200: { description: "The order and its items", data: orderWireSchema },
+				404: { description: "The order does not exist", errors: [{ code: "NOT_FOUND" }] },
+			},
+		},
+		PATCH: {
+			summary: "Cancel an order",
+			description: "Only a pending order owned by the caller can be cancelled.",
+			tags: ["Order"],
+			parameters: { path: { id: orderIdParameter } },
+			requestBody: {
+				description: "The cancellation status transition",
+				required: true,
+				schema: updateOrderSchema,
+			},
+			responses: {
+				200: { description: "The cancelled order", data: orderWireSchema },
+				400: {
+					description: "The request body is invalid",
+					errors: [{ code: "VALIDATION_FAILED", details: validationDetailsWireSchema }],
+				},
+				404: { description: "The order does not exist", errors: [{ code: "NOT_FOUND" }] },
+				409: {
+					description: "The order is paid or already cancelled",
+					errors: [{ code: "CONFLICT" }],
+				},
+			},
+		},
+	},
 	GET: async ({ res, db, user, params }) => {
 		if (!user) throw new Error("user undefined");
 
