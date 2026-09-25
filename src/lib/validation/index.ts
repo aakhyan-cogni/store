@@ -5,3 +5,4 @@ export * from "./categorySchema.js";
 export * from "./cartSchema.js";
 export * from "./orderSchema.js";
 export * from "./request.js";
+export * from "./wireSchemas.js";

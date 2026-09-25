@@ -1,6 +1,6 @@
 # Serialized wire schemas and named components
 
-Status: ready-for-agent
+Status: resolved
 Type: task
 Blocked by: 01
 
@@ -16,3 +16,10 @@ Define reusable Zod schemas for the JSON values sent over HTTP and stable names 
 - Reusing a component name for a different schema is detectable.
 - No route response or domain behavior changes.
 
+## Resolution
+
+Added stable `ContractSchema`-compatible components for every current JSON
+response value, including distinct public and mutation shapes where the API
+currently differs. Dated values use ISO date-time strings, while request and
+query schemas remain unchanged. Focused tests cover component names, wire
+formats, database-shaped Cart mutation results, and input-mode reuse.
