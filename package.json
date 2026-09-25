@@ -17,6 +17,7 @@
 		"build:code": "tsc",
 		"openapi:generate": "node dist/commands/generateOpenApi.js",
 		"openapi:check": "node dist/commands/generateOpenApi.js --check",
+		"docs:mintlify": "node dist/commands/mintlifyPreview.js",
 		"watch": "tsc --watch",
 		"start": "node --env-file=.env dist/index.js",
 		"typecheck": "tsc --noEmit",
