@@ -8,7 +8,9 @@ import {
 	Route,
 	sendData,
 	sendError,
+	tokenWireSchema,
 	UserRepository,
+	validationDetailsWireSchema,
 } from "#lib";
 
 /**
@@ -22,6 +24,50 @@ const DUMMY_PASSWORD_HASH = "$2b$12$ggm/92k/Im.3LKAGftv5deaEHgQQ6ctAfd.d29UsBxxo
 
 export default new Route({
 	description: "Log in an existing user",
+	contracts: {
+		POST: {
+			summary: "Log in",
+			description: "Authenticates a User with an email address and password and returns a bearer token.",
+			tags: ["Authentication"],
+			requestBody: {
+				schema: loginSchema,
+				componentName: "LoginRequest",
+				description: "The User credentials to authenticate.",
+				required: true,
+				contentTypes: ["application/json"],
+				examples: {
+					credentials: {
+						summary: "User credentials",
+						value: { email: "user@example.com", password: "example-password" },
+					},
+				},
+			},
+			responses: {
+				200: {
+					description: "The User was authenticated",
+					data: tokenWireSchema,
+				},
+				400: {
+					description: "The request body is invalid",
+					errors: [
+						{
+							code: "VALIDATION_FAILED",
+							description: "The request body does not match the login schema.",
+							details: validationDetailsWireSchema,
+						},
+					],
+				},
+				401: {
+					description: "The email address or password is incorrect",
+					errors: [{ code: "UNAUTHENTICATED", description: "The supplied credentials are invalid." }],
+				},
+				429: {
+					description: "Too many login attempts",
+					errors: [{ code: "RATE_LIMITED", description: "Retry after the duration in the retry-after header." }],
+				},
+			},
+		},
+	},
 	POST: async ({ req, res, body, db }) => {
 		const loginBody = parseRequest(loginSchema, body);
 
