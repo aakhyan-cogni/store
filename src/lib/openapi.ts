@@ -90,6 +90,11 @@ export async function generateOpenApiDocument(
 	return document;
 }
 
+/** Serialize a generated document to the canonical tracked-file representation. */
+export function serializeOpenApiDocument(document: OpenApiDocument) {
+	return `${JSON.stringify(document, null, "\t")}\n`;
+}
+
 class GenerationContext {
 	public readonly issues: OpenApiContractIssue[] = [];
 	private readonly components = new Map<string, JsonObject>();

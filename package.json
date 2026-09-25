@@ -13,7 +13,10 @@
 	"scripts": {
 		"test": "vitest run",
 		"dev": "node --watch --env-file=.env dist/index.js",
-		"build": "tsc",
+		"build": "npm run build:code && npm run openapi:generate",
+		"build:code": "tsc",
+		"openapi:generate": "node dist/commands/generateOpenApi.js",
+		"openapi:check": "node dist/commands/generateOpenApi.js --check",
 		"watch": "tsc --watch",
 		"start": "node --env-file=.env dist/index.js",
 		"typecheck": "tsc --noEmit",

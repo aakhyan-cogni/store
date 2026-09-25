@@ -1,6 +1,6 @@
 # API information and generation command
 
-Status: ready-for-agent
+Status: resolved
 Type: task
 Blocked by: 02, 04, 05, 06
 
@@ -16,3 +16,9 @@ Add configurable API information plus a command that discovers, generates, valid
 - Output ordering and bytes are deterministic.
 - Command-level tests cover success, a selected output path, and failure.
 
+## Resolution
+
+Added project-level API information and a standalone compiled generation command. The command discovers the
+real route catalogue, validates and serializes deterministic OpenAPI bytes, writes the tracked root document,
+and supports selected output paths plus exact-byte check mode. The normal build now compiles before generation,
+and command tests cover writing, checking, output selection, invalid contracts, and stale files.

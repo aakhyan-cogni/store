@@ -1,0 +1,3645 @@
+{
+	"openapi": "3.1.0",
+	"jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+	"info": {
+		"title": "Store API",
+		"version": "1.0.0",
+		"description": "A simple CRUD REST API"
+	},
+	"servers": [
+		{
+			"url": "http://localhost:3000"
+		}
+	],
+	"paths": {
+		"/api/auth/login": {
+			"post": {
+				"summary": "Log in",
+				"description": "Authenticates a User with an email address and password and returns a bearer token.",
+				"tags": [
+					"Authentication"
+				],
+				"operationId": "postApiAuthLogin",
+				"security": [],
+				"requestBody": {
+					"description": "The User credentials to authenticate.",
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/LoginRequest"
+							},
+							"examples": {
+								"credentials": {
+									"summary": "User credentials",
+									"value": {
+										"email": "user@example.com",
+										"password": "example-password"
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "The User was authenticated",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"data": {
+											"$ref": "#/components/schemas/Token"
+										}
+									},
+									"required": [
+										"data"
+									],
+									"additionalProperties": false
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "The request body is invalid",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"description": "The request body does not match the login schema.",
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "VALIDATION_FAILED"
+																},
+																"details": {
+																	"$ref": "#/components/schemas/ValidationDetails"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "The email address or password is incorrect",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"description": "The supplied credentials are invalid.",
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "UNAUTHENTICATED"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Too many login attempts",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							},
+							"retry-after": {
+								"description": "Seconds before retrying",
+								"schema": {
+									"type": "integer",
+									"minimum": 0
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"description": "Retry after the duration in the retry-after header.",
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "RATE_LIMITED"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/auth/register": {
+			"post": {
+				"summary": "Register a User",
+				"description": "Creates a User with the default shopper role.",
+				"tags": [
+					"Authentication"
+				],
+				"operationId": "postApiAuthRegister",
+				"security": [],
+				"requestBody": {
+					"description": "The new User's name, email address, and password.",
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/RegistrationRequest"
+							},
+							"examples": {
+								"user": {
+									"summary": "New User",
+									"value": {
+										"name": "Ada Lovelace",
+										"email": "ada@example.com",
+										"password": "example-password"
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "The User was registered",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"data": {
+											"$ref": "#/components/schemas/User"
+										}
+									},
+									"required": [
+										"data"
+									],
+									"additionalProperties": false
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "The request body is invalid",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"description": "The request body does not match the registration schema.",
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "VALIDATION_FAILED"
+																},
+																"details": {
+																	"$ref": "#/components/schemas/ValidationDetails"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "A User with the email address already exists",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"description": "The email address is already registered.",
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "CONFLICT"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Too many registration attempts",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							},
+							"retry-after": {
+								"description": "Seconds before retrying",
+								"schema": {
+									"type": "integer",
+									"minimum": 0
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"description": "Retry after the duration in the retry-after header.",
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "RATE_LIMITED"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/cart": {
+			"get": {
+				"summary": "List cart items",
+				"tags": [
+					"Cart"
+				],
+				"operationId": "getApiCart",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "The caller's cart",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"data": {
+											"$ref": "#/components/schemas/Cart"
+										}
+									},
+									"required": [
+										"data"
+									],
+									"additionalProperties": false
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Authentication required",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "UNAUTHENTICATED"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"summary": "Add a product to the cart",
+				"tags": [
+					"Cart"
+				],
+				"operationId": "postApiCart",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"requestBody": {
+					"description": "The product and quantity to add",
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$schema": "https://json-schema.org/draft/2020-12/schema",
+								"type": "object",
+								"properties": {
+									"product_id": {
+										"type": "integer",
+										"minimum": -9007199254740991,
+										"maximum": 9007199254740991
+									},
+									"quantity": {
+										"type": "integer",
+										"minimum": 1,
+										"maximum": 9007199254740991
+									}
+								},
+								"required": [
+									"product_id",
+									"quantity"
+								],
+								"additionalProperties": false
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "The stored cart item",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"data": {
+											"$ref": "#/components/schemas/CartMutationResult"
+										}
+									},
+									"required": [
+										"data"
+									],
+									"additionalProperties": false
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "The request body is invalid",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "VALIDATION_FAILED"
+																},
+																"details": {
+																	"$ref": "#/components/schemas/ValidationDetails"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Authentication required",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "UNAUTHENTICATED"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "The product does not exist",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "NOT_FOUND"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "The requested quantity exceeds available stock",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "CONFLICT"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"summary": "Clear the cart",
+				"description": "Clearing an empty cart also succeeds.",
+				"tags": [
+					"Cart"
+				],
+				"operationId": "deleteApiCart",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"responses": {
+					"204": {
+						"description": "The cart was cleared",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Authentication required",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "UNAUTHENTICATED"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/cart/{productId}": {
+			"patch": {
+				"summary": "Update a cart item",
+				"tags": [
+					"Cart"
+				],
+				"operationId": "patchApiCartByProductId",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "productId",
+						"in": "path",
+						"required": true,
+						"description": "The product identifier for the cart item",
+						"schema": {
+							"$schema": "https://json-schema.org/draft/2020-12/schema",
+							"type": "string",
+							"pattern": "^[1-9]\\d*$"
+						},
+						"example": "7"
+					}
+				],
+				"requestBody": {
+					"description": "The replacement quantity",
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$schema": "https://json-schema.org/draft/2020-12/schema",
+								"type": "object",
+								"properties": {
+									"quantity": {
+										"type": "integer",
+										"minimum": 1,
+										"maximum": 9007199254740991
+									}
+								},
+								"required": [
+									"quantity"
+								],
+								"additionalProperties": false
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "The updated stored cart item",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"data": {
+											"$ref": "#/components/schemas/CartMutationResult"
+										}
+									},
+									"required": [
+										"data"
+									],
+									"additionalProperties": false
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "The request body is invalid",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "VALIDATION_FAILED"
+																},
+																"details": {
+																	"$ref": "#/components/schemas/ValidationDetails"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Authentication required",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "UNAUTHENTICATED"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "The product or cart item does not exist",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "NOT_FOUND"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "The requested quantity exceeds available stock",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "CONFLICT"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"summary": "Remove a cart item",
+				"description": "The product may be removed even when it is no longer listed.",
+				"tags": [
+					"Cart"
+				],
+				"operationId": "deleteApiCartByProductId",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "productId",
+						"in": "path",
+						"required": true,
+						"description": "The product identifier for the cart item",
+						"schema": {
+							"$schema": "https://json-schema.org/draft/2020-12/schema",
+							"type": "string",
+							"pattern": "^[1-9]\\d*$"
+						},
+						"example": "7"
+					}
+				],
+				"responses": {
+					"204": {
+						"description": "The cart item was removed",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Authentication required",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "UNAUTHENTICATED"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "The cart item does not exist",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "NOT_FOUND"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/categories/all": {
+			"get": {
+				"summary": "List Categories",
+				"tags": [
+					"Catalogue"
+				],
+				"operationId": "getApiCategoriesAll",
+				"security": [],
+				"responses": {
+					"200": {
+						"description": "All Categories",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"data": {
+											"$ref": "#/components/schemas/CategoryList"
+										}
+									},
+									"required": [
+										"data"
+									],
+									"additionalProperties": false
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/categories/new": {
+			"post": {
+				"summary": "Create a Category",
+				"tags": [
+					"Catalogue"
+				],
+				"operationId": "postApiCategoriesNew",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"x-required-roles": [
+					"ADMIN"
+				],
+				"requestBody": {
+					"description": "The Category to create",
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/NewCategory"
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Category created",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"data": {
+											"$ref": "#/components/schemas/Category"
+										}
+									},
+									"required": [
+										"data"
+									],
+									"additionalProperties": false
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid Category data",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "VALIDATION_FAILED"
+																},
+																"details": {
+																	"$ref": "#/components/schemas/ValidationDetails"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Authentication required",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "UNAUTHENTICATED"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Insufficient role",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "FORBIDDEN"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Category name already exists",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "CONFLICT"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/orders": {
+			"get": {
+				"summary": "List orders",
+				"tags": [
+					"Order"
+				],
+				"operationId": "getApiOrders",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "The caller's orders",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"data": {
+											"$ref": "#/components/schemas/OrderList"
+										}
+									},
+									"required": [
+										"data"
+									],
+									"additionalProperties": false
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Authentication required",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "UNAUTHENTICATED"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"summary": "Check out the cart",
+				"description": "Creates an order for every item in the cart and clears the cart.",
+				"tags": [
+					"Order"
+				],
+				"operationId": "postApiOrders",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"responses": {
+					"201": {
+						"description": "The created order",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"data": {
+											"$ref": "#/components/schemas/Order"
+										}
+									},
+									"required": [
+										"data"
+									],
+									"additionalProperties": false
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Authentication required",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "UNAUTHENTICATED"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "The cart is empty or contains an unavailable quantity or product",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "CONFLICT"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/orders/{id}": {
+			"get": {
+				"summary": "Get an order",
+				"tags": [
+					"Order"
+				],
+				"operationId": "getApiOrdersById",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"description": "The order identifier",
+						"schema": {
+							"$schema": "https://json-schema.org/draft/2020-12/schema",
+							"type": "string",
+							"pattern": "^[1-9]\\d*$"
+						},
+						"example": "42"
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "The order and its items",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"data": {
+											"$ref": "#/components/schemas/Order"
+										}
+									},
+									"required": [
+										"data"
+									],
+									"additionalProperties": false
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Authentication required",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "UNAUTHENTICATED"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "The order does not exist",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "NOT_FOUND"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			},
+			"patch": {
+				"summary": "Cancel an order",
+				"description": "Only a pending order owned by the caller can be cancelled.",
+				"tags": [
+					"Order"
+				],
+				"operationId": "patchApiOrdersById",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"description": "The order identifier",
+						"schema": {
+							"$schema": "https://json-schema.org/draft/2020-12/schema",
+							"type": "string",
+							"pattern": "^[1-9]\\d*$"
+						},
+						"example": "42"
+					}
+				],
+				"requestBody": {
+					"description": "The cancellation status transition",
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$schema": "https://json-schema.org/draft/2020-12/schema",
+								"type": "object",
+								"properties": {
+									"status": {
+										"type": "string",
+										"const": "CANCELLED"
+									}
+								},
+								"required": [
+									"status"
+								],
+								"additionalProperties": false
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "The cancelled order",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"data": {
+											"$ref": "#/components/schemas/Order"
+										}
+									},
+									"required": [
+										"data"
+									],
+									"additionalProperties": false
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "The request body is invalid",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "VALIDATION_FAILED"
+																},
+																"details": {
+																	"$ref": "#/components/schemas/ValidationDetails"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Authentication required",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "UNAUTHENTICATED"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "The order does not exist",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "NOT_FOUND"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "The order is paid or already cancelled",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "CONFLICT"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/ping": {
+			"get": {
+				"summary": "Check API health",
+				"description": "Reports whether the API process is available and returns the current server timestamp.",
+				"tags": [
+					"Health"
+				],
+				"operationId": "getApiPing",
+				"security": [],
+				"responses": {
+					"200": {
+						"description": "The API is healthy",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"data": {
+											"$ref": "#/components/schemas/Health"
+										}
+									},
+									"required": [
+										"data"
+									],
+									"additionalProperties": false
+								},
+								"examples": {
+									"healthy": {
+										"summary": "Healthy response",
+										"value": {
+											"data": {
+												"status": "ok",
+												"timestamp": 1758739200000
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/products/all": {
+			"get": {
+				"summary": "Browse Products",
+				"description": "Returns listed Products matching the supplied search, Category, Price, and pagination filters.",
+				"tags": [
+					"Catalogue"
+				],
+				"operationId": "getApiProductsAll",
+				"security": [],
+				"parameters": [
+					{
+						"name": "category_id",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"description": "Only Products in this Category",
+							"type": "integer",
+							"exclusiveMinimum": 0,
+							"maximum": 9007199254740991
+						}
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"required": true,
+						"schema": {
+							"default": 20,
+							"description": "Page size; values above 100 are capped",
+							"type": "integer",
+							"exclusiveMinimum": 0,
+							"maximum": 9007199254740991
+						}
+					},
+					{
+						"name": "max_price",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"description": "Maximum Product Price, inclusive and not below min_price",
+							"type": "string",
+							"pattern": "^(\\d+)(?:\\.(\\d{1,2}))?$"
+						}
+					},
+					{
+						"name": "min_price",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"description": "Minimum Product Price, inclusive",
+							"type": "string",
+							"pattern": "^(\\d+)(?:\\.(\\d{1,2}))?$"
+						}
+					},
+					{
+						"name": "offset",
+						"in": "query",
+						"required": true,
+						"schema": {
+							"default": 0,
+							"description": "Number of matching Products to skip",
+							"type": "integer",
+							"minimum": 0,
+							"maximum": 9007199254740991
+						}
+					},
+					{
+						"name": "q",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"description": "Case-insensitive Product name search; blank values are ignored",
+							"type": "string"
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "A page of listed Products",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"data": {
+											"$ref": "#/components/schemas/ProductList"
+										},
+										"meta": {
+											"$ref": "#/components/schemas/Pagination"
+										}
+									},
+									"required": [
+										"data",
+										"meta"
+									],
+									"additionalProperties": false
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid search, filter, or pagination parameters",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "VALIDATION_FAILED"
+																},
+																"details": {
+																	"$ref": "#/components/schemas/ValidationDetails"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/products/new": {
+			"post": {
+				"summary": "Create a Product",
+				"tags": [
+					"Catalogue"
+				],
+				"operationId": "postApiProductsNew",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"x-required-roles": [
+					"ADMIN"
+				],
+				"requestBody": {
+					"description": "The Product to create",
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/NewProduct"
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Product created",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"data": {
+											"$ref": "#/components/schemas/CreatedProduct"
+										}
+									},
+									"required": [
+										"data"
+									],
+									"additionalProperties": false
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid Product data or unknown Category",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "VALIDATION_FAILED"
+																},
+																"details": {
+																	"$ref": "#/components/schemas/ValidationDetails"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Authentication required",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "UNAUTHENTICATED"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Insufficient role",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "FORBIDDEN"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/products/{id}": {
+			"get": {
+				"summary": "Get a Product",
+				"tags": [
+					"Catalogue"
+				],
+				"operationId": "getApiProductsById",
+				"security": [],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"description": "The Product identifier",
+						"schema": {
+							"$schema": "https://json-schema.org/draft/2020-12/schema",
+							"type": "integer",
+							"exclusiveMinimum": 0,
+							"maximum": 9007199254740991
+						},
+						"example": 7
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "The listed Product",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"data": {
+											"$ref": "#/components/schemas/Product"
+										}
+									},
+									"required": [
+										"data"
+									],
+									"additionalProperties": false
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Product not found",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "NOT_FOUND"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			},
+			"patch": {
+				"summary": "Update a Product",
+				"description": "Updates at least one supplied Product field.",
+				"tags": [
+					"Catalogue"
+				],
+				"operationId": "patchApiProductsById",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"x-required-roles": [
+					"ADMIN"
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"description": "The Product identifier",
+						"schema": {
+							"$schema": "https://json-schema.org/draft/2020-12/schema",
+							"type": "integer",
+							"exclusiveMinimum": 0,
+							"maximum": 9007199254740991
+						},
+						"example": 7
+					}
+				],
+				"requestBody": {
+					"description": "The Product fields to update",
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/UpdateProduct"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Product updated",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"data": {
+											"$ref": "#/components/schemas/Product"
+										}
+									},
+									"required": [
+										"data"
+									],
+									"additionalProperties": false
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid Product data or unknown Category",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "VALIDATION_FAILED"
+																},
+																"details": {
+																	"$ref": "#/components/schemas/ValidationDetails"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Authentication required",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "UNAUTHENTICATED"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Insufficient role",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "FORBIDDEN"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Product not found",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "NOT_FOUND"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"summary": "Delete a Product",
+				"description": "Delists the Product from the public catalogue.",
+				"tags": [
+					"Catalogue"
+				],
+				"operationId": "deleteApiProductsById",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"x-required-roles": [
+					"ADMIN"
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"description": "The Product identifier",
+						"schema": {
+							"$schema": "https://json-schema.org/draft/2020-12/schema",
+							"type": "integer",
+							"exclusiveMinimum": 0,
+							"maximum": 9007199254740991
+						},
+						"example": 7
+					}
+				],
+				"responses": {
+					"204": {
+						"description": "Product delisted",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Authentication required",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "UNAUTHENTICATED"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					},
+					"403": {
+						"description": "Insufficient role",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "FORBIDDEN"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Product not found",
+						"headers": {
+							"x-request-id": {
+								"description": "Request correlation identifier",
+								"schema": {
+									"type": "string",
+									"format": "uuid"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"oneOf": [
+										{
+											"allOf": [
+												{
+													"$ref": "#/components/schemas/ApiErrorResponse"
+												},
+												{
+													"type": "object",
+													"properties": {
+														"error": {
+															"type": "object",
+															"properties": {
+																"code": {
+																	"const": "NOT_FOUND"
+																}
+															}
+														}
+													}
+												}
+											]
+										}
+									]
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	},
+	"components": {
+		"schemas": {
+			"ApiError": {
+				"type": "object",
+				"properties": {
+					"code": {
+						"type": "string",
+						"enum": [
+							"VALIDATION_FAILED",
+							"UNAUTHENTICATED",
+							"FORBIDDEN",
+							"NOT_FOUND",
+							"CONFLICT",
+							"RATE_LIMITED",
+							"METHOD_NOT_ALLOWED",
+							"NOT_IMPLEMENTED",
+							"INTERNAL_ERROR"
+						]
+					},
+					"message": {
+						"type": "string"
+					},
+					"details": {}
+				},
+				"required": [
+					"code",
+					"message"
+				],
+				"additionalProperties": false
+			},
+			"ApiErrorResponse": {
+				"type": "object",
+				"properties": {
+					"error": {
+						"$ref": "#/components/schemas/ApiError"
+					}
+				},
+				"required": [
+					"error"
+				],
+				"additionalProperties": false
+			},
+			"Cart": {
+				"$schema": "https://json-schema.org/draft/2020-12/schema",
+				"type": "array",
+				"items": {
+					"type": "object",
+					"properties": {
+						"product_id": {
+							"type": "integer",
+							"minimum": -9007199254740991,
+							"maximum": 9007199254740991
+						},
+						"name": {
+							"type": "string"
+						},
+						"price": {
+							"type": "string"
+						},
+						"stock": {
+							"type": "integer",
+							"minimum": 0,
+							"maximum": 9007199254740991
+						},
+						"quantity": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 9007199254740991
+						},
+						"listed": {
+							"type": "boolean"
+						}
+					},
+					"required": [
+						"product_id",
+						"name",
+						"price",
+						"stock",
+						"quantity",
+						"listed"
+					],
+					"additionalProperties": false
+				}
+			},
+			"CartMutationResult": {
+				"$schema": "https://json-schema.org/draft/2020-12/schema",
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"user_id": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"product_id": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"quantity": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 9007199254740991
+					},
+					"created_at": {
+						"type": "string",
+						"format": "date-time",
+						"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+					}
+				},
+				"required": [
+					"id",
+					"user_id",
+					"product_id",
+					"quantity",
+					"created_at"
+				],
+				"additionalProperties": false
+			},
+			"Category": {
+				"$schema": "https://json-schema.org/draft/2020-12/schema",
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"name": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 100
+					}
+				},
+				"required": [
+					"id",
+					"name"
+				],
+				"additionalProperties": false
+			},
+			"CategoryList": {
+				"$schema": "https://json-schema.org/draft/2020-12/schema",
+				"type": "array",
+				"items": {
+					"type": "object",
+					"properties": {
+						"id": {
+							"type": "integer",
+							"minimum": -9007199254740991,
+							"maximum": 9007199254740991
+						},
+						"name": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 100
+						}
+					},
+					"required": [
+						"id",
+						"name"
+					],
+					"additionalProperties": false
+				}
+			},
+			"CreatedProduct": {
+				"$schema": "https://json-schema.org/draft/2020-12/schema",
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"is_active": {
+						"type": "boolean"
+					},
+					"category_id": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"name": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 100
+					},
+					"description": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"price": {
+						"type": "string",
+						"pattern": "^(\\d+)(?:\\.(\\d{1,2}))?$"
+					},
+					"stock": {
+						"type": "integer",
+						"minimum": 0,
+						"maximum": 9007199254740991
+					},
+					"created_at": {
+						"type": "string",
+						"format": "date-time",
+						"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+					}
+				},
+				"required": [
+					"id",
+					"is_active",
+					"category_id",
+					"name",
+					"price",
+					"stock",
+					"created_at"
+				],
+				"additionalProperties": false
+			},
+			"Health": {
+				"$schema": "https://json-schema.org/draft/2020-12/schema",
+				"type": "object",
+				"properties": {
+					"status": {
+						"type": "string",
+						"const": "ok"
+					},
+					"timestamp": {
+						"type": "integer",
+						"minimum": 0,
+						"maximum": 9007199254740991
+					}
+				},
+				"required": [
+					"status",
+					"timestamp"
+				],
+				"additionalProperties": false
+			},
+			"LoginRequest": {
+				"$schema": "https://json-schema.org/draft/2020-12/schema",
+				"type": "object",
+				"properties": {
+					"email": {
+						"type": "string",
+						"format": "email",
+						"pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+					},
+					"password": {
+						"type": "string",
+						"minLength": 1
+					}
+				},
+				"required": [
+					"email",
+					"password"
+				],
+				"additionalProperties": false
+			},
+			"NewCategory": {
+				"$schema": "https://json-schema.org/draft/2020-12/schema",
+				"type": "object",
+				"properties": {
+					"name": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 100
+					}
+				},
+				"required": [
+					"name"
+				],
+				"additionalProperties": false
+			},
+			"NewProduct": {
+				"$schema": "https://json-schema.org/draft/2020-12/schema",
+				"type": "object",
+				"properties": {
+					"category_id": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"name": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 100
+					},
+					"description": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"price": {
+						"type": "string",
+						"pattern": "^(\\d+)(?:\\.(\\d{1,2}))?$"
+					},
+					"stock": {
+						"default": 0,
+						"type": "integer",
+						"minimum": 0,
+						"maximum": 9007199254740991
+					}
+				},
+				"required": [
+					"category_id",
+					"name",
+					"price",
+					"stock"
+				],
+				"additionalProperties": false
+			},
+			"Order": {
+				"$schema": "https://json-schema.org/draft/2020-12/schema",
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"total_amount": {
+						"type": "string",
+						"pattern": "^(\\d+)(?:\\.(\\d{1,2}))?$"
+					},
+					"status": {
+						"type": "string",
+						"enum": [
+							"PENDING",
+							"PAID",
+							"CANCELLED"
+						]
+					},
+					"created_at": {
+						"type": "string",
+						"format": "date-time",
+						"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+					},
+					"items": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"product_id": {
+									"type": "integer",
+									"minimum": -9007199254740991,
+									"maximum": 9007199254740991
+								},
+								"name": {
+									"type": "string"
+								},
+								"quantity": {
+									"type": "integer",
+									"minimum": 1,
+									"maximum": 9007199254740991
+								},
+								"price_at_purchase": {
+									"type": "string",
+									"pattern": "^(\\d+)(?:\\.(\\d{1,2}))?$"
+								}
+							},
+							"required": [
+								"product_id",
+								"name",
+								"quantity",
+								"price_at_purchase"
+							],
+							"additionalProperties": false
+						}
+					}
+				},
+				"required": [
+					"id",
+					"total_amount",
+					"status",
+					"created_at",
+					"items"
+				],
+				"additionalProperties": false
+			},
+			"OrderList": {
+				"$schema": "https://json-schema.org/draft/2020-12/schema",
+				"type": "array",
+				"items": {
+					"type": "object",
+					"properties": {
+						"id": {
+							"type": "integer",
+							"minimum": -9007199254740991,
+							"maximum": 9007199254740991
+						},
+						"total_amount": {
+							"type": "string",
+							"pattern": "^(\\d+)(?:\\.(\\d{1,2}))?$"
+						},
+						"status": {
+							"type": "string",
+							"enum": [
+								"PENDING",
+								"PAID",
+								"CANCELLED"
+							]
+						},
+						"created_at": {
+							"type": "string",
+							"format": "date-time",
+							"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+						}
+					},
+					"required": [
+						"id",
+						"total_amount",
+						"status",
+						"created_at"
+					],
+					"additionalProperties": false
+				}
+			},
+			"Pagination": {
+				"$schema": "https://json-schema.org/draft/2020-12/schema",
+				"type": "object",
+				"properties": {
+					"limit": {
+						"type": "integer",
+						"exclusiveMinimum": 0,
+						"maximum": 9007199254740991
+					},
+					"offset": {
+						"type": "integer",
+						"minimum": 0,
+						"maximum": 9007199254740991
+					},
+					"total": {
+						"type": "integer",
+						"minimum": 0,
+						"maximum": 9007199254740991
+					}
+				},
+				"required": [
+					"limit",
+					"offset",
+					"total"
+				],
+				"additionalProperties": false
+			},
+			"Product": {
+				"$schema": "https://json-schema.org/draft/2020-12/schema",
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"category_id": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"name": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 100
+					},
+					"description": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"price": {
+						"type": "string",
+						"pattern": "^(\\d+)(?:\\.(\\d{1,2}))?$"
+					},
+					"stock": {
+						"type": "integer",
+						"minimum": 0,
+						"maximum": 9007199254740991
+					},
+					"created_at": {
+						"type": "string",
+						"format": "date-time",
+						"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+					}
+				},
+				"required": [
+					"id",
+					"category_id",
+					"name",
+					"price",
+					"stock",
+					"created_at"
+				],
+				"additionalProperties": false
+			},
+			"ProductList": {
+				"$schema": "https://json-schema.org/draft/2020-12/schema",
+				"type": "array",
+				"items": {
+					"type": "object",
+					"properties": {
+						"id": {
+							"type": "integer",
+							"minimum": -9007199254740991,
+							"maximum": 9007199254740991
+						},
+						"category_id": {
+							"type": "integer",
+							"minimum": -9007199254740991,
+							"maximum": 9007199254740991
+						},
+						"name": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 100
+						},
+						"description": {
+							"anyOf": [
+								{
+									"type": "string"
+								},
+								{
+									"type": "null"
+								}
+							]
+						},
+						"price": {
+							"type": "string",
+							"pattern": "^(\\d+)(?:\\.(\\d{1,2}))?$"
+						},
+						"stock": {
+							"type": "integer",
+							"minimum": 0,
+							"maximum": 9007199254740991
+						},
+						"created_at": {
+							"type": "string",
+							"format": "date-time",
+							"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+						}
+					},
+					"required": [
+						"id",
+						"category_id",
+						"name",
+						"price",
+						"stock",
+						"created_at"
+					],
+					"additionalProperties": false
+				}
+			},
+			"ProductQuery": {
+				"$schema": "https://json-schema.org/draft/2020-12/schema",
+				"type": "object",
+				"properties": {
+					"q": {
+						"description": "Case-insensitive Product name search; blank values are ignored",
+						"type": "string"
+					},
+					"category_id": {
+						"description": "Only Products in this Category",
+						"type": "integer",
+						"exclusiveMinimum": 0,
+						"maximum": 9007199254740991
+					},
+					"min_price": {
+						"description": "Minimum Product Price, inclusive",
+						"type": "string",
+						"pattern": "^(\\d+)(?:\\.(\\d{1,2}))?$"
+					},
+					"max_price": {
+						"description": "Maximum Product Price, inclusive and not below min_price",
+						"type": "string",
+						"pattern": "^(\\d+)(?:\\.(\\d{1,2}))?$"
+					},
+					"limit": {
+						"default": 20,
+						"description": "Page size; values above 100 are capped",
+						"type": "integer",
+						"exclusiveMinimum": 0,
+						"maximum": 9007199254740991
+					},
+					"offset": {
+						"default": 0,
+						"description": "Number of matching Products to skip",
+						"type": "integer",
+						"minimum": 0,
+						"maximum": 9007199254740991
+					}
+				},
+				"required": [
+					"limit",
+					"offset"
+				],
+				"additionalProperties": false
+			},
+			"RegistrationRequest": {
+				"$schema": "https://json-schema.org/draft/2020-12/schema",
+				"type": "object",
+				"properties": {
+					"name": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 100
+					},
+					"email": {
+						"type": "string",
+						"format": "email",
+						"pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+					},
+					"password": {
+						"type": "string",
+						"minLength": 12,
+						"maxLength": 72
+					}
+				},
+				"required": [
+					"name",
+					"email",
+					"password"
+				],
+				"additionalProperties": false
+			},
+			"Token": {
+				"$schema": "https://json-schema.org/draft/2020-12/schema",
+				"type": "object",
+				"properties": {
+					"token": {
+						"type": "string"
+					}
+				},
+				"required": [
+					"token"
+				],
+				"additionalProperties": false
+			},
+			"UpdateProduct": {
+				"$schema": "https://json-schema.org/draft/2020-12/schema",
+				"type": "object",
+				"properties": {
+					"category_id": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"name": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 100
+					},
+					"description": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "null"
+							}
+						]
+					},
+					"price": {
+						"type": "string",
+						"pattern": "^(\\d+)(?:\\.(\\d{1,2}))?$"
+					},
+					"stock": {
+						"type": "integer",
+						"minimum": 0,
+						"maximum": 9007199254740991
+					}
+				},
+				"additionalProperties": false
+			},
+			"User": {
+				"$schema": "https://json-schema.org/draft/2020-12/schema",
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "integer",
+						"minimum": -9007199254740991,
+						"maximum": 9007199254740991
+					},
+					"name": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 100
+					},
+					"email": {
+						"type": "string",
+						"format": "email",
+						"pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+					},
+					"role": {
+						"default": "USER",
+						"type": "string",
+						"enum": [
+							"ADMIN",
+							"USER"
+						]
+					},
+					"created_at": {
+						"type": "string",
+						"format": "date-time",
+						"pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+					}
+				},
+				"required": [
+					"id",
+					"name",
+					"email",
+					"role",
+					"created_at"
+				],
+				"additionalProperties": false
+			},
+			"ValidationDetails": {
+				"$schema": "https://json-schema.org/draft/2020-12/schema",
+				"type": "array",
+				"items": {
+					"type": "object",
+					"properties": {
+						"field": {
+							"type": "string"
+						},
+						"message": {
+							"type": "string"
+						}
+					},
+					"required": [
+						"field",
+						"message"
+					],
+					"additionalProperties": false
+				}
+			}
+		},
+		"securitySchemes": {
+			"bearerAuth": {
+				"type": "http",
+				"scheme": "bearer",
+				"bearerFormat": "JWT"
+			}
+		}
+	}
+}
