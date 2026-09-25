@@ -1,6 +1,6 @@
 import { Server } from "#lib";
 
-const server = new Server();
+const server = new Server({ openApi: { path: "/openapi.json" } });
 await server.start();
 
 const shutdown = async () => {

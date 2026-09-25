@@ -9,6 +9,6 @@ export const apiInformation = {
 	title: "Store API",
 	version: "1.0.0",
 	description: "A simple CRUD REST API",
-	servers: ["http://localhost:3000"],
+	servers: ["http://localhost:5000"],
 	outputPath: "openapi.json",
 } as const satisfies ApiInformation;
