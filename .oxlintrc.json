@@ -1,0 +1,12 @@
+{
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+	"options": {
+		"typeAware": true
+	},
+	"rules": {
+		"no-case-declarations": "error",
+		"no-fallthrough": "error",
+		"no-unused-vars": ["error", { "caughtErrors": "none", "ignoreRestSiblings": true }],
+		"typescript/consistent-return": ["error", { "treatUndefinedAsUnspecified": true }]
+	}
+}

@@ -1,4 +1,5 @@
 import { productQuerySchema } from "../validation/productSchema.js";
+import { parseRequest } from "../validation/request.js";
 
 /**
  * Reads storefront browse params off a request URL. Absent and blank params
@@ -11,5 +12,5 @@ export function parseProductQuery(params: URLSearchParams) {
 		if (value.trim()) provided[key] = value;
 	}
 
-	return productQuerySchema.parse(provided);
+	return parseRequest(productQuerySchema, provided);
 }

@@ -11,6 +11,33 @@ const MAX_TOKEN_LIFETIME_SECONDS = 30 * SECONDS_PER_UNIT.d;
 /** The shortest HS256 secret worth having: 256 bits of it, as text. */
 const MIN_JWT_SECRET_LENGTH = 32;
 
+function parseCorsOrigins(value: string) {
+	return [
+		...new Set(
+			value
+				.split(",")
+				.map((entry) => entry.trim())
+				.filter(Boolean)
+				.map(normalizeCorsOrigin),
+		),
+	];
+}
+
+function normalizeCorsOrigin(value: string) {
+	const url = new URL(value);
+	if (
+		!["http:", "https:"].includes(url.protocol) ||
+		url.username ||
+		url.password ||
+		url.pathname !== "/" ||
+		url.search ||
+		url.hash
+	) {
+		throw new Error(`Invalid CORS origin: ${value}`);
+	}
+	return url.origin;
+}
+
 /**
  * Reads a duration as whole seconds. Accepts either a bare count of seconds or
  * a unit suffix (`3600`, `1h`, `30m`), and returns `null` for anything else so
@@ -32,31 +59,51 @@ export function parseDurationSeconds(value: string) {
  * weak secret is a boot failure with a readable message instead of a 500 on
  * the first request that happens to need it.
  */
-export const envSchema = z.object({
-	PORT: z.coerce.number("PORT is required").int().positive().max(65535),
-	HOST: z.string().min(1).optional(),
-	NODE_ENV: z.enum(["production", "development", "testing", "test"]).default("development"),
-	DATABASE_URL: z.string("DATABASE_URL is required").regex(/^postgres(ql)?:\/\//, "must be a postgres:// URL"),
-	// HS256 is only as strong as the secret behind it: a short one is
-	// brute-forcible, and every token the server ever issued is then forgeable.
-	JWT_SECRET: z
-		.string("JWT_SECRET is required")
-		.min(MIN_JWT_SECRET_LENGTH, `must be at least ${MIN_JWT_SECRET_LENGTH} characters`),
-	JWT_EXPIRES_IN: z
-		.string()
-		.default("1h")
-		.transform((value, ctx) => {
-			const seconds = parseDurationSeconds(value);
-			if (seconds === null || seconds <= 0 || seconds > MAX_TOKEN_LIFETIME_SECONDS) {
-				ctx.addIssue({
-					code: "custom",
-					message: `must be seconds or a duration like '1h', up to ${MAX_TOKEN_LIFETIME_SECONDS}s`,
-				});
-				return z.NEVER;
-			}
-			return seconds;
-		}),
-});
+export const envSchema = z
+	.object({
+		PORT: z.coerce.number("PORT is required").int().positive().max(65535),
+		HOST: z.string().min(1).optional(),
+		NODE_ENV: z.enum(["production", "development", "testing", "test"]).default("development"),
+		DATABASE_URL: z.string("DATABASE_URL is required").regex(/^postgres(ql)?:\/\//, "must be a postgres:// URL"),
+		// HS256 is only as strong as the secret behind it: a short one is
+		// brute-forcible, and every token the server ever issued is then forgeable.
+		JWT_SECRET: z
+			.string("JWT_SECRET is required")
+			.min(MIN_JWT_SECRET_LENGTH, `must be at least ${MIN_JWT_SECRET_LENGTH} characters`),
+		JWT_EXPIRES_IN: z
+			.string()
+			.default("1h")
+			.transform((value, ctx) => {
+				const seconds = parseDurationSeconds(value);
+				if (seconds === null || seconds <= 0 || seconds > MAX_TOKEN_LIFETIME_SECONDS) {
+					ctx.addIssue({
+						code: "custom",
+						message: `must be seconds or a duration like '1h', up to ${MAX_TOKEN_LIFETIME_SECONDS}s`,
+					});
+					return z.NEVER;
+				}
+				return seconds;
+			}),
+		CORS_ORIGINS: z.string().optional(),
+	})
+	.superRefine((env, ctx) => {
+		if (env.NODE_ENV === "production" && !env.CORS_ORIGINS?.trim()) {
+			ctx.addIssue({ code: "custom", path: ["CORS_ORIGINS"], message: "is required in production" });
+		}
+		try {
+			parseCorsOrigins(env.CORS_ORIGINS ?? "http://localhost:3000");
+		} catch {
+			ctx.addIssue({
+				code: "custom",
+				path: ["CORS_ORIGINS"],
+				message: "must be a comma-separated list of HTTP or HTTPS origins",
+			});
+		}
+	})
+	.transform((env) => ({
+		...env,
+		CORS_ORIGINS: parseCorsOrigins(env.CORS_ORIGINS ?? "http://localhost:3000"),
+	}));
 
 export type Env = z.infer<typeof envSchema>;
 

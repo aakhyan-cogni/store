@@ -1,4 +1,13 @@
-import { addToCartSchema, CartRepository, CustomError, ProductRepository, Route } from "#lib";
+import {
+	addToCartSchema,
+	CartRepository,
+	CustomError,
+	parseRequest,
+	ProductRepository,
+	Route,
+	sendData,
+	sendNoContent,
+} from "#lib";
 
 export default new Route({
 	description: "Manage cart",
@@ -7,11 +16,11 @@ export default new Route({
 		if (!user) throw new Error("user undefined");
 		const userId = user.id;
 		const cartItems = await new CartRepository(db).getByUserId(userId);
-		res.end(JSON.stringify(cartItems));
+		sendData(res, cartItems);
 	},
 	POST: async ({ res, db, user, body }) => {
 		if (!user) throw new Error("user undefined");
-		const data = addToCartSchema.parse(body);
+		const data = parseRequest(addToCartSchema, body);
 
 		// Check if product exists
 		const exists = await new ProductRepository(db).exists(data.product_id);
@@ -24,13 +33,13 @@ export default new Route({
 
 		const addToCart = await cartRepo.upsertItem(user.id, data.product_id, data.quantity);
 
-		res.writeHead(201).end(JSON.stringify(addToCart));
+		sendData(res, addToCart, { status: 201 });
 	},
 	// Idempotent: clearing an already-empty cart is not an error.
 	DELETE: async ({ res, db, user }) => {
 		if (!user) throw new Error("user undefined");
 		await new CartRepository(db).clearCart(user.id);
 
-		res.writeHead(204).end();
+		sendNoContent(res);
 	},
 });

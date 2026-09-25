@@ -21,6 +21,24 @@ describe("envSchema", () => {
 		const env = envSchema.parse(withoutOptional);
 		expect(env.NODE_ENV).toBe("development");
 		expect(env.HOST).toBeUndefined();
+		expect(env.CORS_ORIGINS).toEqual(["http://localhost:3000"]);
+	});
+
+	it("normalizes and deduplicates configured CORS origins", () => {
+		const env = envSchema.parse({
+			...VALID,
+			CORS_ORIGINS: "https://store.example, http://localhost:3000/, https://store.example",
+		});
+		expect(env.CORS_ORIGINS).toEqual(["https://store.example", "http://localhost:3000"]);
+	});
+
+	it("requires explicit CORS origins in production", () => {
+		expect(() => envSchema.parse({ ...VALID, NODE_ENV: "production", CORS_ORIGINS: undefined })).toThrow();
+	});
+
+	it("refuses wildcard and non-origin CORS values", () => {
+		expect(() => envSchema.parse({ ...VALID, CORS_ORIGINS: "*" })).toThrow();
+		expect(() => envSchema.parse({ ...VALID, CORS_ORIGINS: "https://store.example/path" })).toThrow();
 	});
 
 	it("refuses a JWT secret short enough to brute-force", () => {

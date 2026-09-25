@@ -1,4 +1,14 @@
-import { CartRepository, CustomError, parseRouteId, ProductRepository, Route, updateCartItemSchema } from "#lib";
+import {
+	CartRepository,
+	CustomError,
+	parseRequest,
+	parseRouteId,
+	ProductRepository,
+	Route,
+	sendData,
+	sendNoContent,
+	updateCartItemSchema,
+} from "#lib";
 
 export default new Route({
 	description: "Cart Product management",
@@ -6,7 +16,7 @@ export default new Route({
 	PATCH: async ({ res, db, user, body, params }) => {
 		if (!user) throw new Error("user not defined");
 		const productId = parseRouteId(params?.productId);
-		const data = updateCartItemSchema.parse(body);
+		const data = parseRequest(updateCartItemSchema, body);
 		if (!productId) throw new CustomError(404, "product not found");
 
 		const productRepo = new ProductRepository(db);
@@ -24,7 +34,7 @@ export default new Route({
 		const updated = await cartRepo.updateQuantity(user.id, productId, data.quantity);
 		if (!updated) throw new CustomError(404, "item does not exist in cart");
 
-		res.end(JSON.stringify(updated));
+		sendData(res, updated);
 	},
 	// Deliberately does not require the product to still be listed: a delisted
 	// line has to be removable, or the cart holding it can never check out.
@@ -36,6 +46,6 @@ export default new Route({
 		const removed = await new CartRepository(db).removeItem(user.id, productId);
 		if (!removed) throw new CustomError(404, "item does not exist in cart");
 
-		res.writeHead(204).end();
+		sendNoContent(res);
 	},
 });

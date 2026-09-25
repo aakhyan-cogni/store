@@ -1,4 +1,13 @@
-import { CustomError, parseRouteId, ProductRepository, Route, updateProductSchema } from "#lib";
+import {
+	CustomError,
+	parseRequest,
+	parseRouteId,
+	ProductRepository,
+	Route,
+	sendData,
+	sendNoContent,
+	updateProductSchema,
+} from "#lib";
 
 function productIdFrom(params: Record<string, string> | undefined) {
 	const id = parseRouteId(params?.id);
@@ -11,21 +20,20 @@ export default new Route({
 	auth: {
 		PATCH: { required: true, roles: ["ADMIN"] },
 		DELETE: { required: true, roles: ["ADMIN"] },
-		GET: { required: true },
 	},
 	GET: async ({ res, params, db }) => {
 		const product = await new ProductRepository(db).get(productIdFrom(params));
-		res.end(JSON.stringify({ product }));
+		sendData(res, product);
 	},
 	PATCH: async ({ res, params, db, body }) => {
 		const id = productIdFrom(params);
-		const data = updateProductSchema.parse(body);
+		const data = parseRequest(updateProductSchema, body);
 
 		const product = await new ProductRepository(db).update(id, data);
-		res.end(JSON.stringify({ message: "Updated product", product }));
+		sendData(res, product);
 	},
 	DELETE: async ({ res, params, db }) => {
 		await new ProductRepository(db).delete(productIdFrom(params));
-		res.writeHead(204).end();
+		sendNoContent(res);
 	},
 });

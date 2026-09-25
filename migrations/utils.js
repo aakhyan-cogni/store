@@ -8,7 +8,7 @@ export async function ensureMigrationsTable(sql) {
 }
 
 export function parseMigration(content) {
-	const [_, upPart, downPart] = content.match(/-- UP([\s\S]*)-- DOWN([\s\S]*)/) || [];
+	const [, upPart, downPart] = content.match(/-- UP([\s\S]*)-- DOWN([\s\S]*)/) || [];
 
 	if (!upPart || !downPart) {
 		throw new Error("Invalid migration format");

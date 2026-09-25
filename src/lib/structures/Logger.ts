@@ -15,7 +15,7 @@ const LEVEL_COLORS: Record<LogLevel, (text: string) => string> = {
 export class Logger {
 	public static init() {
 		const logger = winston.createLogger({
-			level: LogLevel.Info,
+			level: LogLevel.Http,
 			format: format.combine(format.timestamp(), format.json()),
 			transports: [
 				new winston.transports.File({
@@ -48,7 +48,7 @@ export class Logger {
 	private static customFormat() {
 		return format.printf(({ level, message, timestamp }) => {
 			const colorize = LEVEL_COLORS[level as LogLevel] ?? ((text: string) => text);
-			return `${dim(timestamp as string)} [${colorize(level.toUpperCase())}]: ${message}`;
+			return `${dim(String(timestamp))} [${colorize(level.toUpperCase())}]: ${String(message)}`;
 		});
 	}
 }

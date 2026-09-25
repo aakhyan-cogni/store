@@ -1,4 +1,4 @@
-import { CustomError, OrderRepository, parseRouteId, Route, updateOrderSchema } from "#lib";
+import { CustomError, OrderRepository, parseRequest, parseRouteId, Route, sendData, updateOrderSchema } from "#lib";
 
 function orderIdFrom(params: Record<string, string> | undefined) {
 	const id = parseRouteId(params?.id);
@@ -13,16 +13,16 @@ export default new Route({
 		if (!user) throw new Error("user undefined");
 
 		const order = await new OrderRepository(db).getById(user.id, orderIdFrom(params));
-		res.end(JSON.stringify({ order }));
+		sendData(res, order);
 	},
 	PATCH: async ({ res, db, user, params, body }) => {
 		if (!user) throw new Error("user undefined");
 		const id = orderIdFrom(params);
 
 		// The schema admits CANCELLED only, so any other status is a 400.
-		updateOrderSchema.parse(body);
+		parseRequest(updateOrderSchema, body);
 
 		const order = await new OrderRepository(db).cancel(user.id, id);
-		res.end(JSON.stringify({ message: "Order cancelled", order }));
+		sendData(res, order);
 	},
 });

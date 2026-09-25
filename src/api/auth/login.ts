@@ -1,4 +1,15 @@
-import { authRateLimiter, clientAddress, JwtService, loginSchema, Password, Route, UserRepository } from "#lib";
+import {
+	authRateLimiter,
+	clientAddress,
+	JwtService,
+	loginSchema,
+	parseRequest,
+	Password,
+	Route,
+	sendData,
+	sendError,
+	UserRepository,
+} from "#lib";
 
 /**
  * A real bcrypt hash of a throwaway string, at the same cost as a stored
@@ -12,7 +23,7 @@ const DUMMY_PASSWORD_HASH = "$2b$12$ggm/92k/Im.3LKAGftv5deaEHgQQ6ctAfd.d29UsBxxo
 export default new Route({
 	description: "Log in an existing user",
 	POST: async ({ req, res, body, db }) => {
-		const loginBody = loginSchema.parse(body);
+		const loginBody = parseRequest(loginSchema, body);
 
 		// Charged to the caller and to the account they are aiming at, so one
 		// address cannot be ground down from many sources, and one source
@@ -22,8 +33,7 @@ export default new Route({
 		const limit = authRateLimiter.check(`login:${clientAddress(req)}`, `login:${loginBody.email}`);
 		if (!limit.allowed) {
 			res.setHeader("retry-after", String(limit.retryAfterSeconds));
-			res.writeHead(429);
-			return res.end(JSON.stringify({ message: "Too many attempts, please try again later" }));
+			return sendError(res, 429, "RATE_LIMITED", "Too many attempts, please try again later");
 		}
 
 		const userDb = new UserRepository(db);
@@ -31,13 +41,11 @@ export default new Route({
 		const user = await userDb.findByEmail(loginBody.email);
 		const passwordMatches = await Password.verify(loginBody.password, user?.password_hash ?? DUMMY_PASSWORD_HASH);
 		if (!user || !passwordMatches) {
-			res.writeHead(401);
-			return res.end(JSON.stringify({ message: "Invalid email or password" }));
+			return sendError(res, 401, "UNAUTHENTICATED", "Invalid email or password");
 		}
 
 		const token = new JwtService().sign({ sub: String(user.id), email: user.email, role: user.role });
 
-		res.writeHead(200);
-		res.end(JSON.stringify({ token }));
+		sendData(res, { token });
 	},
 });

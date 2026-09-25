@@ -3,13 +3,14 @@ import { registerRoutes } from "../registry/index.js";
 import { DB } from "../db/index.js";
 import { Logger } from "./Logger.js";
 import { Parser } from "./Parser.js";
-import { Server as NodeServer } from "http";
+import { Server as NodeServer, type IncomingMessage, type ServerResponse } from "http";
 import type { RegisteredRoute, Route } from "./Route.js";
 import { HTTP_METHODS, type HTTPMethod } from "#src/types";
 import { authorizeRequest } from "../auth/middleware.js";
 import { toErrorResponse } from "../errors.js";
 import { loadEnv } from "../env.js";
 import { getRequestUrl } from "../utils.js";
+import { sendError, sendNoContent } from "../responses.js";
 import postgres from "postgres";
 
 const BODY_METHODS = new Set<HTTPMethod>(["POST", "PUT", "PATCH"]);
@@ -42,51 +43,99 @@ export class Server extends NodeServer {
 	}
 
 	public dispatchRequests() {
-		this.on("request", async (req, res) => {
+		this.on("request", (req, res) => void this.handleRequest(req, res));
+	}
+
+	private async handleRequest(req: IncomingMessage, res: ServerResponse<IncomingMessage>) {
+		const requestId = randomUUID();
+		const startedAt = performance.now();
+		let userId: number | undefined;
+		let path = "<missing>";
+		res.setHeader("x-request-id", requestId);
+		let accessLogged = false;
+		const logAccess = () => {
+			if (accessLogged) return;
+			accessLogged = true;
+			this.logger.http({
+				message: "request",
+				method: req.method ?? "UNKNOWN",
+				path,
+				status: res.writableFinished ? res.statusCode : 499,
+				duration_ms: Number((performance.now() - startedAt).toFixed(2)),
+				request_id: requestId,
+				...(userId === undefined ? {} : { user_id: userId }),
+			});
+		};
+		res.once("finish", logAccess);
+		res.once("close", logAccess);
+
+		try {
 			if (!req.url) {
-				this.logger.error(`URL missing in request from ${req.socket.remoteAddress ?? "unknown"}`);
-				return res.writeHead(500).end();
+				this.logger.error(`[${requestId}] URL missing in request`);
+				return sendError(res, 500, "INTERNAL_ERROR", "Internal Server Error");
 			}
 			const url = getRequestUrl(req);
-			const path = url.pathname;
+			path = url.pathname;
+			const corsAllowed = this.applyCors(req, res);
+
+			if (req.method === "OPTIONS") {
+				const allowed = this.allowedMethods(path);
+				if (!allowed.length) return sendError(res, 404, "NOT_FOUND", "Resource not found");
+				const advertised = this.advertisedMethods(allowed);
+				res.setHeader("allow", advertised.join(", "));
+				if (corsAllowed) {
+					res.setHeader("access-control-allow-methods", advertised.join(", "));
+					res.setHeader("access-control-allow-headers", "Authorization, Content-Type");
+				}
+				return sendNoContent(res);
+			}
 
 			// Narrowed rather than cast: `req.method` is whatever the client
 			// sent, and the union only covers what this server implements.
-			if (!isHTTPMethod(req.method)) {
+			const routeMethod = req.method === "HEAD" ? "GET" : req.method;
+			if (!isHTTPMethod(routeMethod)) {
 				const allowed = this.allowedMethods(path);
-				if (allowed.length) res.setHeader("allow", allowed.join(", "));
-				return res.writeHead(501).end();
+				if (allowed.length) res.setHeader("allow", this.advertisedMethods(allowed).join(", "));
+				return sendError(res, 501, "NOT_IMPLEMENTED", "Method not implemented");
 			}
-			const method = req.method;
+			const method = routeMethod;
 
 			const resolved = this.resolveHandler(path, method);
 			if (!resolved) {
 				const allowed = this.allowedMethods(path);
 				// RFC 9110: a 405 has to say what the resource does support.
-				if (allowed.length) res.setHeader("allow", allowed.join(", "));
-				return res.writeHead(allowed.length ? 405 : 404).end();
+				if (allowed.length) {
+					res.setHeader("allow", this.advertisedMethods(allowed).join(", "));
+					return sendError(res, 405, "METHOD_NOT_ALLOWED", "Method not allowed");
+				}
+				return sendError(res, 404, "NOT_FOUND", "Resource not found");
 			}
 			const { handler, params, auth } = resolved;
 
 			const authorization = authorizeRequest(req, auth);
 			if (!authorization.authorized) {
 				if (authorization.status === 401) res.setHeader("WWW-Authenticate", "Bearer");
-				this.logger.warn(`Rejected ${method}:${path} with ${authorization.status}`);
-				return res.writeHead(authorization.status).end();
+				this.logger.warn(`[${requestId}] Rejected ${method}:${path} with ${authorization.status}`);
+				return sendError(
+					res,
+					authorization.status,
+					authorization.status === 401 ? "UNAUTHENTICATED" : "FORBIDDEN",
+					authorization.status === 401 ? "Authentication required" : "Access forbidden",
+				);
 			}
+			userId = authorization.user?.id;
 
 			let body: unknown;
 			if (BODY_METHODS.has(method)) {
 				try {
 					body = await Parser.parseBody(req);
 				} catch (err) {
-					this.logger.warn(`Failed to parse request body for ${method}:${path}: ${(err as Error).message}`);
-					return res.writeHead(400).end();
+					this.logger.warn(`[${requestId}] Failed to parse request body for ${method}:${path}`);
+					return sendError(res, 400, "VALIDATION_FAILED", "Request body could not be parsed");
 				}
 			}
 
 			try {
-				res.setHeader("content-type", "application/json");
 				await handler({
 					req,
 					res,
@@ -98,14 +147,47 @@ export class Server extends NodeServer {
 					server: this,
 				});
 			} catch (err) {
-				const requestId = randomUUID();
 				const { status, body: errorBody, logLevel, logMessage } = toErrorResponse(err, requestId);
 
 				this.logger[logLevel](`${method}:${path} ${logMessage}`);
 				if (res.headersSent) return res.end();
-				res.writeHead(status).end(JSON.stringify(errorBody));
+				res.statusCode = status;
+				res.setHeader("content-type", "application/json");
+				const payload = JSON.stringify(errorBody);
+				res.setHeader("content-length", Buffer.byteLength(payload));
+				res.end(payload);
 			}
-		});
+		} catch (err) {
+			const { status, body, logLevel, logMessage } = toErrorResponse(err, requestId);
+			this.logger[logLevel](logMessage);
+			if (res.headersSent) return res.end();
+			res.statusCode = status;
+			res.setHeader("content-type", "application/json");
+			const payload = JSON.stringify(body);
+			res.setHeader("content-length", Buffer.byteLength(payload));
+			res.end(payload);
+		}
+	}
+
+	private applyCors(req: IncomingMessage, res: ServerResponse<IncomingMessage>) {
+		const origin = req.headers.origin;
+		res.setHeader("vary", "Origin");
+		if (origin && loadEnv().CORS_ORIGINS.includes(origin)) {
+			res.setHeader("access-control-allow-origin", origin);
+			res.setHeader("access-control-expose-headers", "x-request-id, retry-after");
+			return true;
+		}
+		return false;
+	}
+
+	private advertisedMethods(methods: HTTPMethod[]) {
+		const advertised: string[] = [];
+		for (const method of methods) {
+			advertised.push(method);
+			if (method === "GET") advertised.push("HEAD");
+		}
+		advertised.push("OPTIONS");
+		return advertised;
 	}
 
 	private resolveHandler(path: string, method: HTTPMethod) {
@@ -143,7 +225,8 @@ export class Server extends NodeServer {
 		try {
 			await this.db`select 1`;
 		} catch (e) {
-			this.logger.error((e as Error).message, { ...(e as Error), message: "" });
+			const error = e as Error;
+			this.logger.error({ message: error.message, stack: error.stack });
 			throw e;
 		}
 

@@ -12,23 +12,33 @@ export class Parser {
 			// up on non-ASCII input under real traffic.
 			const chunks: Buffer[] = [];
 			let bytes = 0;
+			let tooLarge = false;
 			const contentType = req.headers["content-type"]?.split(";")[0]?.trim();
 			req.on("data", (chunk: Buffer) => {
+				if (tooLarge) return;
 				bytes += chunk.length;
 				if (bytes > MAX_BODY_BYTES) {
-					req.destroy();
-					return void reject(new Error("Request body too large"));
+					tooLarge = true;
+					reject(new Error("Request body too large"));
+					return;
 				}
 				chunks.push(chunk);
 			});
 			req.on("error", reject);
 			req.on("end", () => {
+				if (tooLarge) return;
 				try {
 					const body = Buffer.concat(chunks).toString("utf8");
 					// Nothing was sent, so there is nothing to interpret: a
 					// bodyless POST (checkout, for one) needs no content-type.
-					if (!body) return void resolve(undefined as T);
-					if (!contentType) return void reject(new Error("No Content Type defined"));
+					if (!body) {
+						resolve(undefined as T);
+						return;
+					}
+					if (!contentType) {
+						reject(new Error("No Content Type defined"));
+						return;
+					}
 					if (contentType.endsWith("json")) {
 						resolve(JSON.parse(body));
 					} else resolve(body as T); // TODO: parse other content

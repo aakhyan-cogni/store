@@ -25,7 +25,7 @@ try {
 	const appliedSet = new Set(appliedMigrations.map((m) => m.name));
 
 	switch (command) {
-		case "up":
+		case "up": {
 			let count = 0;
 			for (const file of files) {
 				if (appliedSet.has(file)) continue;
@@ -50,7 +50,8 @@ try {
 			if (count === 0) console.log(`Nothing to apply.`);
 			else console.log(`Applied ${count} migration${count === 1 ? "" : "s"}`);
 			break;
-		case "down":
+		}
+		case "down": {
 			const [latest] = await sql`
             SELECT name
             FROM migrations
@@ -87,11 +88,13 @@ try {
 
 			console.log(`Rolled back ${gray(underline(latest.name))} (${cyanBright(`${duration.toFixed(2)}ms`)})`);
 			break;
-		case "status":
+		}
+		case "status": {
 			for (const file of files) {
 				console.log(`${appliedSet.has(file) ? "✓" : "✗"} ${file}`);
 			}
 			break;
+		}
 		default:
 			throw new Error("Unknown command '" + command + "'");
 	}

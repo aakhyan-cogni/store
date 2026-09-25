@@ -11,7 +11,15 @@ export class ProductRepository {
 
 	public async getAll(query: ProductQuery) {
 		const db = this.db;
-		const rows = await db`
+		const filters = db`
+			is_active = TRUE
+			${query.q ? db`AND name ILIKE ${`%${escapeLikePattern(query.q)}%`}` : db``}
+			${query.category_id ? db`AND category_id = ${query.category_id}` : db``}
+			${query.min_price ? db`AND price >= ${query.min_price}` : db``}
+			${query.max_price ? db`AND price <= ${query.max_price}` : db``}
+		`;
+		const [rows, countRows] = await Promise.all([
+			db`
             SELECT id,
                 category_id,
                 name,
@@ -20,15 +28,17 @@ export class ProductRepository {
                 stock,
                 created_at
             FROM products
-            WHERE is_active = TRUE
-                ${query.q ? db`AND name ILIKE ${`%${escapeLikePattern(query.q)}%`}` : db``}
-                ${query.category_id ? db`AND category_id = ${query.category_id}` : db``}
-                ${query.min_price ? db`AND price >= ${query.min_price}` : db``}
-                ${query.max_price ? db`AND price <= ${query.max_price}` : db``}
+			WHERE ${filters}
             ORDER BY id
             LIMIT ${query.limit}
-            OFFSET ${query.offset};`;
-		return z.array(publicProductSchema).parse(rows);
+			OFFSET ${query.offset};`,
+			db`SELECT COUNT(*)::integer AS total FROM products WHERE ${filters};`,
+		]);
+		const count = z
+			.array(z.object({ total: z.int().min(0) }))
+			.length(1)
+			.parse(countRows)[0]!;
+		return { products: z.array(publicProductSchema).parse(rows), total: count.total };
 	}
 
 	public async exists(id: number) {

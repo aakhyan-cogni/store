@@ -1,4 +1,15 @@
-import { authRateLimiter, clientAddress, Password, registerSchema, Route, UserRepository, userSchema } from "#lib";
+import {
+	authRateLimiter,
+	clientAddress,
+	parseRequest,
+	Password,
+	registerSchema,
+	Route,
+	sendData,
+	sendError,
+	UserRepository,
+	userSchema,
+} from "#lib";
 
 export default new Route({
 	description: "Register a new user",
@@ -8,11 +19,10 @@ export default new Route({
 		const limit = authRateLimiter.check(`register:${clientAddress(req)}`);
 		if (!limit.allowed) {
 			res.setHeader("retry-after", String(limit.retryAfterSeconds));
-			res.writeHead(429);
-			return res.end(JSON.stringify({ message: "Too many attempts, please try again later" }));
+			return sendError(res, 429, "RATE_LIMITED", "Too many attempts, please try again later");
 		}
 
-		const registerBody = registerSchema.parse(body);
+		const registerBody = parseRequest(registerSchema, body);
 		const userDb = new UserRepository(db);
 
 		const password_hash = await Password.hash(registerBody.password);
@@ -20,7 +30,6 @@ export default new Route({
 		// the unique index talking rather than a check that races it.
 		const newUser = await userDb.create({ email: registerBody.email, name: registerBody.name, password_hash });
 
-		res.writeHead(201);
-		res.end(JSON.stringify({ message: "Registered successfully", user: userSchema.parse(newUser) }));
+		sendData(res, userSchema.parse(newUser), { status: 201 });
 	},
 });

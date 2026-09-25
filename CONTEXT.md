@@ -24,6 +24,11 @@ Whether a Product is offered for sale. Delisting hides a Product from the
 catalogue and from buying without erasing it or the orders that reference it.
 _Avoid_: Active, deleted, archived, soft-deleted
 
+**Public catalogue**:
+The listed Products and Categories that anyone may browse without a User
+account. A Cart and every Order remain private to their owning User.
+_Avoid_: Open store, guest shopping, anonymous checkout
+
 ### Buying
 
 **Cart**:

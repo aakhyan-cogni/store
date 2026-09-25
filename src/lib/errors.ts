@@ -1,6 +1,7 @@
 import postgres from "postgres";
 import { z } from "zod";
 import { CustomError } from "./structures/CustomError.js";
+import { RequestValidationError } from "./validation/request.js";
 
 export interface ErrorResponse {
 	status: number;
@@ -18,19 +19,19 @@ export interface ErrorResponse {
  * carries the failing statement, the constraint, the table and the column, and
  * handing that to an unauthenticated caller maps the schema for them.
  */
-const POSTGRES_RESPONSES: Record<string, { status: number; message: string }> = {
+const POSTGRES_RESPONSES: Record<string, { status: number; code: string; message: string }> = {
 	// unique_violation
-	"23505": { status: 409, message: "That value is already taken" },
+	"23505": { status: 409, code: "CONFLICT", message: "That value is already taken" },
 	// foreign_key_violation
-	"23503": { status: 400, message: "A referenced record does not exist" },
+	"23503": { status: 400, code: "VALIDATION_FAILED", message: "A referenced record does not exist" },
 	// not_null_violation
-	"23502": { status: 400, message: "A required value is missing" },
+	"23502": { status: 400, code: "VALIDATION_FAILED", message: "A required value is missing" },
 	// check_violation
-	"23514": { status: 400, message: "A value is outside the range this resource allows" },
+	"23514": { status: 400, code: "VALIDATION_FAILED", message: "A value is outside the range this resource allows" },
 	// invalid_text_representation
-	"22P02": { status: 400, message: "A value is not of the expected type" },
+	"22P02": { status: 400, code: "VALIDATION_FAILED", message: "A value is not of the expected type" },
 	// numeric_value_out_of_range
-	"22003": { status: 400, message: "A numeric value is out of range" },
+	"22003": { status: 400, code: "VALIDATION_FAILED", message: "A numeric value is out of range" },
 };
 
 const GENERIC_500_MESSAGE = "Internal Server Error";
@@ -44,17 +45,23 @@ const GENERIC_500_MESSAGE = "Internal Server Error";
  * the response by `requestId`.
  */
 export function toErrorResponse(err: unknown, requestId: string): ErrorResponse {
-	if (err instanceof z.ZodError) {
-		const summary = err.issues.map((issue) => `${issue.path.join(".") || "(root)"}: ${issue.message}`).join(", ");
-		return { status: 400, body: z.treeifyError(err), logLevel: "warn", logMessage: `Validation failed: ${summary}` };
+	if (err instanceof RequestValidationError) {
+		const details = err.issues.map((issue) => ({ field: issue.path.join(".") || "(root)", message: issue.message }));
+		const summary = details.map(({ field, message }) => `${field}: ${message}`).join(", ");
+		return {
+			status: 400,
+			body: { error: { code: "VALIDATION_FAILED", message: "Request validation failed", details } },
+			logLevel: "warn",
+			logMessage: `[${requestId}] Validation failed: ${summary}`,
+		};
 	}
 
 	if (err instanceof CustomError) {
 		return {
 			status: err.getCode(),
-			body: { message: err.message },
+			body: { error: { code: err.errorCode, message: err.message } },
 			logLevel: "warn",
-			logMessage: `Refused with ${err.getCode()}: ${err.message}`,
+			logMessage: `[${requestId}] Refused with ${err.getCode()} (${err.errorCode})`,
 		};
 	}
 
@@ -75,25 +82,34 @@ export function toErrorResponse(err: unknown, requestId: string): ErrorResponse 
 		if (!known) {
 			return {
 				status: 500,
-				body: { message: GENERIC_500_MESSAGE, request_id: requestId },
+				body: { error: { code: "INTERNAL_ERROR", message: GENERIC_500_MESSAGE } },
 				logLevel: "error",
-				logMessage: `Unhandled Postgres error [${requestId}]: ${err.message} (${detail})`,
+				logMessage: `Unhandled Postgres error [${requestId}] (${detail})`,
 			};
 		}
 
 		return {
 			status: known.status,
-			body: { message: known.message },
+			body: { error: { code: known.code, message: known.message } },
 			logLevel: "warn",
-			logMessage: `Postgres error mapped to ${known.status}: ${err.message} (${detail})`,
+			logMessage: `[${requestId}] Postgres error mapped to ${known.status} (${detail})`,
 		};
 	}
 
-	const message = err instanceof Error ? err.message : String(err);
+	if (err instanceof z.ZodError) {
+		return {
+			status: 500,
+			body: { error: { code: "INTERNAL_ERROR", message: GENERIC_500_MESSAGE } },
+			logLevel: "error",
+			logMessage: `Unhandled database row validation error [${requestId}]`,
+		};
+	}
+
+	const errorType = err instanceof Error ? err.name : "NonErrorThrow";
 	return {
 		status: 500,
-		body: { message: GENERIC_500_MESSAGE, request_id: requestId },
+		body: { error: { code: "INTERNAL_ERROR", message: GENERIC_500_MESSAGE } },
 		logLevel: "error",
-		logMessage: `Unhandled error [${requestId}]: ${message}`,
+		logMessage: `Unhandled ${errorType} [${requestId}]`,
 	};
 }
