@@ -1,6 +1,6 @@
 # Opt-in OpenAPI endpoint and local Scalar viewer
 
-Status: ready-for-agent
+Status: resolved
 Type: task
 Blocked by: 07
 
@@ -16,3 +16,11 @@ Expose the generated document through opt-in runtime configuration and add a ded
 - Scalar HTML and assets contain no CDN, hosted proxy, registry, telemetry plugin, or enabled AI agent.
 - Smoke tests cover disabled and enabled endpoints plus local viewer assets.
 
+## Resolution
+
+Added an opt-in runtime OpenAPI endpoint that generates the same document from
+the registered route catalogue in memory and stays outside the application
+route tables. Added a local Scalar command that serves its HTML, locked-down
+configuration, and installed standalone browser asset from one origin. Focused
+HTTP tests cover the disabled and enabled endpoint plus the viewer paths,
+configuration, content security policy, and local-only API target.

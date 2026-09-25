@@ -3,7 +3,9 @@ import { compileRoute } from "../utils.js";
 import { discoverRouteCatalogue, type RouteCatalogueEntry } from "./routeCatalogue.js";
 
 export async function registerRoutes(server: Server) {
-	registerRouteCatalogue(server, await discoverRouteCatalogue());
+	const catalogue = await discoverRouteCatalogue();
+	registerRouteCatalogue(server, catalogue);
+	return catalogue;
 }
 
 export interface RouteRegistry {

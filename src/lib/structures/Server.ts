@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { registerRoutes } from "../registry/index.js";
+import { apiInformation } from "../../apiInfo.js";
 import { DB } from "../db/index.js";
 import { Logger } from "./Logger.js";
 import { Parser } from "./Parser.js";
@@ -11,6 +12,12 @@ import { toErrorResponse } from "../errors.js";
 import { loadEnv } from "../env.js";
 import { getRequestUrl } from "../utils.js";
 import { sendError, sendNoContent } from "../responses.js";
+import {
+	generateOpenApiDocument,
+	serializeOpenApiDocument,
+	type OpenApiDocument,
+	type OpenApiOptions,
+} from "../openapi.js";
 import postgres from "postgres";
 
 const BODY_METHODS = new Set<HTTPMethod>(["POST", "PUT", "PATCH"]);
@@ -23,6 +30,17 @@ const REQUEST_TIMEOUT_MS = 30_000;
 const DRAIN_TIMEOUT_MS = 10_000;
 const IDLE_SWEEP_MS = 250;
 
+export interface OpenApiEndpointOptions {
+	path: string;
+	information?: OpenApiOptions;
+	/** Primarily useful for embedding an already generated document. */
+	document?: OpenApiDocument;
+}
+
+export interface ServerOptions {
+	openApi?: OpenApiEndpointOptions;
+}
+
 function isHTTPMethod(method: string | undefined): method is HTTPMethod {
 	return HTTP_METHODS.includes(method as HTTPMethod);
 }
@@ -32,10 +50,17 @@ export class Server extends NodeServer {
 	public staticRoutes = new Map<string, Route>();
 	public dynamicRoutes: RegisteredRoute[] = [];
 	private readonly db: postgres.Sql;
+	private readonly openApiEndpoint: OpenApiEndpointOptions | undefined;
+	private openApiDocument: OpenApiDocument | undefined;
 	private shuttingDown: Promise<void> | undefined;
 
-	public constructor() {
+	public constructor(options: ServerOptions = {}) {
 		super();
+		if (options.openApi && !isAbsolutePath(options.openApi.path)) {
+			throw new TypeError("OpenAPI endpoint path must be an absolute path without a query or fragment");
+		}
+		this.openApiEndpoint = options.openApi;
+		this.openApiDocument = options.openApi?.document;
 		this.logger.info("Initiated Server...");
 		this.db = DB.initialize(this).getClient();
 		this.headersTimeout = HEADERS_TIMEOUT_MS;
@@ -77,6 +102,7 @@ export class Server extends NodeServer {
 			const url = getRequestUrl(req);
 			path = url.pathname;
 			const corsAllowed = this.applyCors(req, res);
+			if (this.handleOpenApiRequest(req, res, path, corsAllowed)) return;
 
 			if (req.method === "OPTIONS") {
 				const allowed = this.allowedMethods(path);
@@ -169,6 +195,35 @@ export class Server extends NodeServer {
 		}
 	}
 
+	private handleOpenApiRequest(
+		req: IncomingMessage,
+		res: ServerResponse<IncomingMessage>,
+		path: string,
+		corsAllowed: boolean,
+	) {
+		if (!this.openApiEndpoint || path !== this.openApiEndpoint.path) return false;
+
+		const allowed = ["GET", "HEAD", "OPTIONS"];
+		res.setHeader("allow", allowed.join(", "));
+		if (req.method === "OPTIONS") {
+			if (corsAllowed) res.setHeader("access-control-allow-methods", allowed.join(", "));
+			sendNoContent(res);
+			return true;
+		}
+		if (req.method !== "GET" && req.method !== "HEAD") {
+			sendError(res, 405, "METHOD_NOT_ALLOWED", "Method not allowed");
+			return true;
+		}
+		if (!this.openApiDocument) throw new Error("OpenAPI document was not generated before request dispatch");
+
+		const payload = serializeOpenApiDocument(this.openApiDocument);
+		res.statusCode = 200;
+		res.setHeader("content-type", "application/json");
+		res.setHeader("content-length", Buffer.byteLength(payload));
+		res.end(payload);
+		return true;
+	}
+
 	private applyCors(req: IncomingMessage, res: ServerResponse<IncomingMessage>) {
 		const origin = req.headers.origin;
 		res.setHeader("vary", "Origin");
@@ -230,7 +285,13 @@ export class Server extends NodeServer {
 			throw e;
 		}
 
-		await registerRoutes(this);
+		const catalogue = await registerRoutes(this);
+		if (this.openApiEndpoint && !this.openApiDocument) {
+			this.openApiDocument = await generateOpenApiDocument(
+				catalogue,
+				this.openApiEndpoint.information ?? apiInformation,
+			);
+		}
 
 		this.dispatchRequests();
 		this.listen(env.PORT, () => {
@@ -278,4 +339,8 @@ export class Server extends NodeServer {
 		await DB.getInstance().close();
 		this.logger.info("Shutdown complete");
 	}
+}
+
+function isAbsolutePath(path: string) {
+	return path.startsWith("/") && !path.includes("?") && !path.includes("#");
 }
