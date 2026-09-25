@@ -1,6 +1,6 @@
 # Spec: OpenAPI contract and local API reference
 
-Status: ready-for-agent
+Status: resolved
 
 ## Problem Statement
 
@@ -156,3 +156,10 @@ platform is not part of this feature.
 - Zod 4 provides native JSON Schema conversion. Some runtime schemas, especially date objects and transformations, may not describe their serialized output directly. Route authors must register wire-format schemas when the runtime and JSON representations differ: https://zod.dev/json-schema
 - The OpenAPI document becomes a public contract even when viewed only locally. Review changes to it with the same care as request and response changes.
 - The generated document is useful independently of the two viewers. Future work can add client generation or contract comparison without changing route metadata.
+
+## Resolution
+
+Implemented the typed operation contracts, shared compiled route catalogue, deterministic OpenAPI 3.1 generator,
+real-route metadata, generation and validation commands, opt-in live endpoint, and local Scalar and Mintlify
+adapters. A compiled-catalogue integration suite covers all 19 explicit handlers, and the repository CI gate checks
+the generated contract. All 10 implementation tickets are resolved.
