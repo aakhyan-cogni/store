@@ -30,6 +30,7 @@
 		"test:watch": "vitest"
 	},
 	"devDependencies": {
+		"@scalar/openapi-parser": "^0.29.6",
 		"@types/bcrypt": "^6.0.0",
 		"@types/jsonwebtoken": "^9.0.10",
 		"@types/node": "^26.2.0",

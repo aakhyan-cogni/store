@@ -1,6 +1,6 @@
 # OpenAPI 3.1 generator and validation
 
-Status: ready-for-agent
+Status: resolved
 Type: task
 Blocked by: 01
 
@@ -16,3 +16,6 @@ Generate a deterministic OpenAPI 3.1 document from the neutral route catalogue b
 - A real OpenAPI 3.1 validator accepts the result.
 - Tests use the generated document and public errors rather than private helper calls.
 
+## Resolution
+
+Added a deterministic OpenAPI 3.1 generator with strict Zod Draft 2020-12 conversion and Scalar validation. The public generator emits route parameters, envelopes, reusable components, authentication metadata, response headers, and bodyless responses. It reports contract failures together through one route-aware error type. Focused tests cover the generated document, validation, deterministic output, and aggregated failures.

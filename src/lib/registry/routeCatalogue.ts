@@ -1,8 +1,7 @@
 import { readdir } from "node:fs/promises";
 import { join, relative, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import type { HTTPMethod } from "#src/types";
-import { HTTP_METHODS } from "#src/types";
+import { HTTP_METHODS, type HTTPMethod } from "../../types/index.js";
 import { Route, type MethodAuth, type OperationContract, type RouteHandler } from "../structures/Route.js";
 import { buildApiRoute, compileRoute } from "../utils.js";
 
